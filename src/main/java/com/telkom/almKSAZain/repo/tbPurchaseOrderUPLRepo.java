@@ -28,4 +28,8 @@ public interface tbPurchaseOrderUPLRepo extends JpaRepository<tb_PurchaseOrderUP
 
     @Query(value = "SELECT * FROM tb_PurchaseOrderUPL d WHERE d.poNumber = :poNumber AND d.uplLine = :uplLine ORDER BY d.recordNo DESC LIMIT 1", nativeQuery = true)
     tb_PurchaseOrderUPL findTopByPoNumberAndUplLine(@Param("poNumber") String poNumber, @Param("uplLine") String uplLine);
+
+    @Query(value = "SELECT * FROM tb_PurchaseOrderUPL d WHERE d.poNumber = :poNumber AND  d.poLineNumber = :poLineNumber AND d.uplLine = :uplLine ORDER BY d.recordNo DESC LIMIT 1", nativeQuery = true)
+    tb_PurchaseOrderUPL findTopByPoNumberAndPoLineNumberAndUplLine(@Param("poNumber") String poNumber, @Param("poLineNumber") String poLineNumber, @Param("uplLine") String uplLine);
+
 }

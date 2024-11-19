@@ -21,7 +21,7 @@ public class DCC {
     private String projectName;
     private String acceptanceType;
     private String status;
-    private String createdDate;
+    private Date createdDate;
     private String dccId;
     private String currency;
 
@@ -113,14 +113,15 @@ public class DCC {
         this.status = status;
     }
 
-    public String getCreatedDate() {
+    public Date getCreatedDate() {
         return createdDate;
     }
 
-    public void setCreatedDate(String createdDate) {
+    public void setCreatedDate(Date createdDate) {
         this.createdDate = createdDate;
     }
 
+   
     public String getDccId() {
         return dccId;
     }

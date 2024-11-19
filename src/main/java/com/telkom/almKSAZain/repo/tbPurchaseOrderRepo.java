@@ -19,8 +19,6 @@ public interface tbPurchaseOrderRepo extends JpaRepository<tbPurchaseOrder, Long
     List<tbPurchaseOrder> findByPoNumberAndVendorNumber(String poId, String supplierId);
 
     List<tbPurchaseOrder> findByPoNumber(String PoNumber);
-    
-    
 
     tbPurchaseOrder findByRecordNo(long recordNo);
 
@@ -29,4 +27,8 @@ public interface tbPurchaseOrderRepo extends JpaRepository<tbPurchaseOrder, Long
 
     @Query(value = "SELECT * FROM tb_PurchaseOrder d WHERE d.poNumber = :poNumber AND d.lineNumber = :lineNumber  ORDER BY d.recordNo DESC LIMIT 1", nativeQuery = true)
     tbPurchaseOrder findTopByPoNumberAndLineNumber(@Param("poNumber") String poNumber, @Param("lineNumber") String lineNumber);
+
+    @Query(value = "SELECT * FROM tb_PurchaseOrder d WHERE d.poNumber = :poNumber AND d.lineNumber = :lineNumber AND d.releaseNum = :releaseNum  ORDER BY d.recordNo DESC LIMIT 1", nativeQuery = true)
+    tbPurchaseOrder findTopByPoNumberAndLineNumberAndReleaseNum(@Param("poNumber") String poNumber, @Param("lineNumber") String lineNumber, @Param("releaseNum") String releaseNum);
+
 }

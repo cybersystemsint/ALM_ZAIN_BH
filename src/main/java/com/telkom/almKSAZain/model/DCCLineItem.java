@@ -13,7 +13,7 @@ public class DCCLineItem {
     private long recordNo;
     private String productName;
     private String productSerialNo;
-    private Integer deliveredQty;
+    private double deliveredQty;
     private String locationName;
     private String inserviceDate;
     private BigDecimal unitPrice;
@@ -21,7 +21,7 @@ public class DCCLineItem {
     private String remarks;
     private String dccId;
     private String itemCode;
-
+    private String actualItemCode;
     //NEW 
     private String poId;
     private String lineNumber;
@@ -35,6 +35,9 @@ public class DCCLineItem {
     private String uplItemCode;
     private String uplItemDescription;
 
+    private String linkId;
+    private String tagNumber;
+
     // Constructors, getters, and setters
     // Constructor
 //    public DCCLineItem() {
@@ -42,6 +45,30 @@ public class DCCLineItem {
     // Getters and Setters
     public String getItemCode() {
         return itemCode;
+    }
+
+    public String getActualItemCode() {
+        return actualItemCode;
+    }
+
+    public void setActualItemCode(String actualItemCode) {
+        this.actualItemCode = actualItemCode;
+    }
+
+    public String getLinkId() {
+        return linkId;
+    }
+
+    public void setLinkId(String linkId) {
+        this.linkId = linkId;
+    }
+
+    public String getTagNumber() {
+        return tagNumber;
+    }
+
+    public void setTagNumber(String tagNumber) {
+        this.tagNumber = tagNumber;
     }
 
     public void setItemCode(String itemCode) {
@@ -96,11 +123,11 @@ public class DCCLineItem {
         this.productSerialNo = productSerialNo;
     }
 
-    public Integer getDeliveredQty() {
+    public double getDeliveredQty() {
         return deliveredQty;
     }
 
-    public void setDeliveredQty(Integer deliveredQty) {
+    public void setDeliveredQty(double deliveredQty) {
         this.deliveredQty = deliveredQty;
     }
 

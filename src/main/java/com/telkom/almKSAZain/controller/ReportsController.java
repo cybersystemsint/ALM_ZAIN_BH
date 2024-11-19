@@ -13,6 +13,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 import com.telkom.almKSAZain.helper.helper;
+//import com.telkom.almKSAZain.model.tb_ChargeAccount;
+import com.telkom.almKSAZain.repo.tbChargeAccountRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.*;
@@ -44,6 +46,9 @@ public class ReportsController {
     @Autowired
     dccpoviewrepo dccpoviewrp;
 
+    @Autowired
+    tbChargeAccountRepo chargeAccountRepo;
+
     String genHeader(String msisdn, String reqid, String Channel) {
         return " | " + reqid + " | " + Channel + " | " + msisdn + " | ";
     }
@@ -53,6 +58,36 @@ public class ReportsController {
         map.put("responseCode", result.equalsIgnoreCase("success") ? "0" : "1001");
         map.put("responseMessage", msg);
         return map;
+    }
+
+    ///GET ALL CREATED CHARGE ACCOUNTS
+    @PostMapping(value = "/reports/getAllItemCodeSubstitutes", produces = "application/json")
+    @CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
+    public List<Map<String, Object>> getAllItemCodeSubstitutes(@RequestBody String req) {
+        JsonObject obj = new JsonParser().parse(req).getAsJsonObject();
+        Integer recordNo = obj.get("recordNo").getAsInt();
+
+        String sql = "SELECT recordNo, recordDateTime, itemCode, relatedItemCode, reciprocalFlag, createdBy, createdDatetime, updatedBy, updatedDateTime FROM tb_ItemCodeSubstitute;";
+        if (recordNo != 0) {
+            sql = "SELECT recordNo, recordDateTime, itemCode, relatedItemCode, reciprocalFlag, createdBy, createdDatetime, updatedBy, updatedDateTime FROM tb_ItemCodeSubstitute WHERE recordNo='" + recordNo + "'";
+        }
+        List<Map<String, Object>> result = jdbcTemplate.queryForList(sql);
+        return result;
+    }
+
+    ///GET ALL CREATED CHARGE ACCOUNTS
+    @PostMapping(value = "/reports/getAllChargeAccounts", produces = "application/json")
+    @CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
+    public List<Map<String, Object>> getAllChargeAccounts(@RequestBody String req) {
+        JsonObject obj = new JsonParser().parse(req).getAsJsonObject();
+        Integer recordNo = obj.get("recordNo").getAsInt();
+
+        String sql = "SELECT recordNo, recordDatetime, chargeAccount, orgCode, orgName, subInventory, createdBy, createdDatetime, updatedBy, updatedDate AS updatedDatetime FROM tb_ChargeAccount;";
+        if (recordNo != 0) {
+            sql = "SELECT recordNo, recordDatetime, chargeAccount, orgCode, orgName, subInventory, createdBy, createdDatetime, updatedBy, updatedDate AS updatedDatetime FROM tb_ChargeAccount WHERE recordNo='" + recordNo + "'";
+        }
+        List<Map<String, Object>> result = jdbcTemplate.queryForList(sql);
+        return result;
     }
 
     //==================GET POS PER VENDOR =====
@@ -80,11 +115,11 @@ public class ReportsController {
         //        String sql = "SELECT PO.poId, PO.poDate, PO.supplierId,PO.status,PO.modelNumber, PO.unitOfMeasure, PO.qtyPerSite, PO.totalNoOfSites, PO.newFACategory, PO.L1,PO.L2,PO.L3,PO.L4,PO.oldFACategory, PO.vendorName, PO.oldFACategory, PO.accDepreciationCode, PO.depreciationCode, PO.lifeYears, PO.vendorName, PO.vendorNumber, PO.dateInService, PO.currency, PO.projectNumber , LN.lineNumber, LN.itemCode, LN.orderQuantity,LN.unitPrice, LN.VAT, LN.UoM,LN.linePrice, PO.costCenter, PO.partNumber,INV.serialNumber ,INV.manufacturerId, INV.acquisitionDate, INV.manufactureDate, INV.locationId, UPL.uplLine, UPL.poLineItemDescription, UPL.quantity AS DeliveredQuantity, UPL.zainItemCategory, UPL.activePassive FROM tb_PO_HD PO LEFT JOIN tb_PO_LN LN ON PO.poId = LN.poId LEFT JOIN tb_Inventory INV ON PO.poId = INV.PONumber LEFT JOIN tb_UPL UPL ON PO.poId = UPL.poId;";
         String sql = "SELECT PO.recordNo,    PO.poNumber,    PO.typeLookUpCode,    PO.blanketTotalAmount,    PO.releaseNum,    PO.lineNumber,    PO.prNum,    PO.projectName,    PO.lineCancelFlag,    PO.cancelReason,    PO.itemPartNumber,    PO.prSubAllow,    PO.countryOfOrigin,    PO.poOrderQuantity,    PO.poQtyNew,    PO.quantityReceived,    PO.quantityDueOld,    PO.quantityDueNew,    PO.quantityBilled,    PO.currencyCode,    PO.unitPriceInPoCurrency,    PO.unitPriceInSAR,    PO.linePriceInPoCurrency,    PO.linePriceInSAR,    PO.amountReceived,    PO.amountDue,    PO.amountDueNew,    PO.amountBilled,    PO.poLineDescription,    PO.organizationName,    PO.organizationCode,    PO.subInventoryCode,    PO.receiptRouting,    PO.authorisationStatus,    PO.poClosureStatus,    PO.departmentName,    PO.businessOwner,    PO.poLineType,    PO.acceptanceType,\n"
                 + "    PO.costCenter,    PO.chargeAccount,    PO.serialControl,    PO.vendorSerialNumberYN,    PO.itemType,    PO.itemCategoryInventory,    PO.inventoryCategoryDescription,    PO.itemCategoryFA,    PO.FACategoryDescription,    PO.itemCategoryPurchasing,    PO.PurchasingCategoryDescription,    PO.vendorName,    PO.vendorNumber,    PO.approvedDate,\n"
-                + "    PO.createdDate FROM  tb_PurchaseOrder PO;";
+                + "    PO.createdDate, CASE  WHEN `PO`.`lineCancelFlag` = 0  AND `PO`.`authorisationStatus` = 'APPROVED'    AND `PO`.`poClosureStatus` = 'OPEN'     THEN 'YES'    ELSE 'NO'  END AS `canRaiseAcceptance`, PO.createdByName, PO.descopedLinePriceInPoCurrency, PO.newLinePriceInPoCurrency FROM  tb_PurchaseOrder PO;";
         if (!supplierId.equalsIgnoreCase("0")) {
             sql = "SELECT PO.recordNo,   PO.poNumber,    PO.typeLookUpCode,    PO.blanketTotalAmount,    PO.releaseNum,    PO.lineNumber,    PO.prNum,    PO.projectName,    PO.lineCancelFlag,    PO.cancelReason,    PO.itemPartNumber,    PO.prSubAllow,    PO.countryOfOrigin,    PO.poOrderQuantity,    PO.poQtyNew,    PO.quantityReceived,    PO.quantityDueOld,    PO.quantityDueNew,    PO.quantityBilled,    PO.currencyCode,    PO.unitPriceInPoCurrency,    PO.unitPriceInSAR,    PO.linePriceInPoCurrency,    PO.linePriceInSAR,    PO.amountReceived,    PO.amountDue,    PO.amountDueNew,    PO.amountBilled,    PO.poLineDescription,    PO.organizationName,    PO.organizationCode,    PO.subInventoryCode,    PO.receiptRouting,    PO.authorisationStatus,    PO.poClosureStatus,    PO.departmentName,    PO.businessOwner,    PO.poLineType,    PO.acceptanceType,\n"
                     + "    PO.costCenter,    PO.chargeAccount,    PO.serialControl,    PO.vendorSerialNumberYN,    PO.itemType,    PO.itemCategoryInventory,    PO.inventoryCategoryDescription,    PO.itemCategoryFA,    PO.FACategoryDescription,    PO.itemCategoryPurchasing,    PO.PurchasingCategoryDescription,    PO.vendorName,    PO.vendorNumber,    PO.approvedDate,\n"
-                    + "    PO.createdDate FROM  tb_PurchaseOrder PO  WHERE PO.vendorNumber='" + supplierId + "'";
+                    + "    PO.createdDate, CASE  WHEN `PO`.`lineCancelFlag` = 0  AND `PO`.`authorisationStatus` = 'APPROVED'    AND `PO`.`poClosureStatus` = 'OPEN'     THEN 'YES'    ELSE 'NO'  END AS `canRaiseAcceptance`,  PO.createdByName, PO.descopedLinePriceInPoCurrency, PO.newLinePriceInPoCurrency FROM  tb_PurchaseOrder PO  WHERE PO.vendorNumber='" + supplierId + "'";
         }
         List<Map<String, Object>> result = jdbcTemplate.queryForList(sql);
         return result;
@@ -97,7 +132,7 @@ public class ReportsController {
         String supplierId = obj.get("supplierId").getAsString();
         String poID = obj.get("poNumber").getAsString();
 
-        String sql = "SELECT PO.recordNo, PO.poNumber, PO.typeLookUpCode, PO.blanketTotalAmount, PO.releaseNum, PO.lineNumber, PO.prNum, PO.projectName, PO.lineCancelFlag, PO.cancelReason, PO.itemPartNumber, PO.prSubAllow, PO.countryOfOrigin, PO.poOrderQuantity, PO.poQtyNew, PO.quantityReceived, PO.quantityDueOld, PO.quantityDueNew, PO.quantityBilled, PO.currencyCode, PO.unitPriceInPoCurrency, PO.unitPriceInSAR, PO.linePriceInPoCurrency, PO.linePriceInSAR, PO.amountReceived, PO.amountDue, PO.amountDueNew, PO.amountBilled, PO.poLineDescription, PO.organizationName, PO.organizationCode, PO.subInventoryCode, PO.receiptRouting, PO.authorisationStatus, PO.poClosureStatus, PO.departmentName, PO.businessOwner, PO.poLineType, PO.acceptanceType, PO.costCenter, PO.chargeAccount, PO.serialControl, PO.vendorSerialNumberYN, PO.itemType, PO.itemCategoryInventory, PO.inventoryCategoryDescription, PO.itemCategoryFA, PO.FACategoryDescription, PO.itemCategoryPurchasing, PO.PurchasingCategoryDescription, PO.vendorName, PO.vendorNumber, PO.approvedDate, PO.createdDate "
+        String sql = "SELECT PO.recordNo, PO.poNumber, PO.typeLookUpCode, PO.blanketTotalAmount, PO.releaseNum, PO.lineNumber, PO.prNum, PO.projectName, PO.lineCancelFlag, PO.cancelReason, PO.itemPartNumber, PO.prSubAllow, PO.countryOfOrigin, PO.poOrderQuantity, PO.poQtyNew, PO.quantityReceived, PO.quantityDueOld, PO.quantityDueNew, PO.quantityBilled, PO.currencyCode, PO.unitPriceInPoCurrency, PO.unitPriceInSAR, PO.linePriceInPoCurrency, PO.linePriceInSAR, PO.amountReceived, PO.amountDue, PO.amountDueNew, PO.amountBilled, PO.poLineDescription, PO.organizationName, PO.organizationCode, PO.subInventoryCode, PO.receiptRouting, PO.authorisationStatus, PO.poClosureStatus, PO.departmentName, PO.businessOwner, PO.poLineType, PO.acceptanceType, PO.costCenter, PO.chargeAccount, PO.serialControl, PO.vendorSerialNumberYN, PO.itemType, PO.itemCategoryInventory, PO.inventoryCategoryDescription, PO.itemCategoryFA, PO.FACategoryDescription, PO.itemCategoryPurchasing, PO.PurchasingCategoryDescription, PO.vendorName, PO.vendorNumber, PO.approvedDate, PO.createdDate, CASE  WHEN `PO`.`lineCancelFlag` = 0  AND `PO`.`authorisationStatus` = 'APPROVED'    AND `PO`.`poClosureStatus` = 'OPEN'     THEN 'YES'    ELSE 'NO'  END AS `canRaiseAcceptance`,  PO.createdByName, PO.descopedLinePriceInPoCurrency, PO.newLinePriceInPoCurrency "
                 + "FROM tb_PurchaseOrder PO ";
         // + "LEFT JOIN tb_UPL UPL ON PO.poNumber = UPL.poId AND PO.lineNumber = UPL.poLine";
 
@@ -141,21 +176,24 @@ public class ReportsController {
                 groupedRow.remove("inventoryCategoryDescription");
                 groupedRow.remove("itemCategoryFA");
                 groupedRow.remove("FACategoryDescription");
-
-                groupedRow.put("totalPoQtyNew", 0);
-                groupedRow.put("totalQuantityReceived", 0);
-                groupedRow.put("totalQuantityDueOld", 0);
-                groupedRow.put("totalQuantityDueNew", 0);
-                groupedRow.put("totalQuantityBilled", 0);
-                groupedRow.put("totalpoOrderQuantity", 0);
-                groupedRow.put("totalunitPriceInPoCurrency", 0);
-                groupedRow.put("totalunitPriceInSAR", 0);
-                groupedRow.put("totallinePriceInPoCurrency", 0);
-                groupedRow.put("totallinePriceInSAR", 0);
-                groupedRow.put("totalamountReceived", 0);
-                groupedRow.put("totalamountDue", 0);
-                groupedRow.put("totalamountDueNew", 0);
-                groupedRow.put("totalamountBilled", 0);
+                groupedRow.remove("descopedLinePriceInPoCurrency");
+                groupedRow.remove("newLinePriceInPoCurrency");
+                groupedRow.put("totalPoQtyNew", 0.0);
+                groupedRow.put("totalQuantityReceived", 0.0);
+                groupedRow.put("totalQuantityDueOld", 0.0);
+                groupedRow.put("totalQuantityDueNew", 0.0);
+                groupedRow.put("totalQuantityBilled", 0.0);
+                groupedRow.put("totalpoOrderQuantity", 0.0);
+                groupedRow.put("totalunitPriceInPoCurrency", 0.0);
+                groupedRow.put("totalunitPriceInSAR", 0.0);
+                groupedRow.put("totallinePriceInPoCurrency", 0.0);
+                groupedRow.put("totallinePriceInSAR", 0.0);
+                groupedRow.put("totalamountReceived", 0.0);
+                groupedRow.put("totalamountDue", 0.0);
+                groupedRow.put("totalamountDueNew", 0.0);
+                groupedRow.put("totalamountBilled", 0.0);
+                groupedRow.put("totalDescopedLinePriceInPoCurrency", 0.0);
+                groupedRow.put("totalNewLinePriceInPoCurrency", 0.0);
                 // Add POlineItems key with an empty list
                 groupedRow.put("POlineItems", new ArrayList<Map<String, Object>>());
                 groupedResults.put(poNumber, groupedRow);
@@ -187,40 +225,46 @@ public class ReportsController {
             poLineItem.put("inventoryCategoryDescription", row.get("inventoryCategoryDescription"));
             poLineItem.put("itemCategoryFA", row.get("itemCategoryFA"));
             poLineItem.put("FACategoryDescription", row.get("FACategoryDescription"));
+            poLineItem.put("descopedLinePriceInPoCurrency", row.get("descopedLinePriceInPoCurrency"));
+            poLineItem.put("newLinePriceInPoCurrency", row.get("newLinePriceInPoCurrency"));
             // Add other POlineItem specific columns here
             ((List<Map<String, Object>>) groupedResults.get(poNumber).get("POlineItems")).add(poLineItem);
 
             // Update totals
-            Integer poOrderQuantity = (row.get("poOrderQuantity") != null) ? ((Number) row.get("poOrderQuantity")).intValue() : 0;
-            Integer poQtyNew = (row.get("poQtyNew") != null) ? ((Number) row.get("poQtyNew")).intValue() : 0;
-            Integer quantityReceived = (row.get("quantityReceived") != null) ? ((Number) row.get("quantityReceived")).intValue() : 0;
-            Integer quantityDueOld = (row.get("quantityDueOld") != null) ? ((Number) row.get("quantityDueOld")).intValue() : 0;
-            Integer quantityDueNew = (row.get("quantityDueNew") != null) ? ((Number) row.get("quantityDueNew")).intValue() : 0;
-            Integer quantityBilled = (row.get("quantityBilled") != null) ? ((Number) row.get("quantityBilled")).intValue() : 0;
-            Integer unitPriceInPoCurrency = (row.get("unitPriceInPoCurrency") != null) ? ((Number) row.get("unitPriceInPoCurrency")).intValue() : 0;
-            Integer unitPriceInSAR = (row.get("unitPriceInSAR") != null) ? ((Number) row.get("unitPriceInSAR")).intValue() : 0;
-            Integer linePriceInPoCurrency = (row.get("linePriceInPoCurrency") != null) ? ((Number) row.get("linePriceInPoCurrency")).intValue() : 0;
-            Integer linePriceInSAR = (row.get("linePriceInSAR") != null) ? ((Number) row.get("linePriceInSAR")).intValue() : 0;
-            Integer amountReceived = (row.get("amountReceived") != null) ? ((Number) row.get("amountReceived")).intValue() : 0;
-            Integer amountDue = (row.get("amountDue") != null) ? ((Number) row.get("amountDue")).intValue() : 0;
-            Integer amountDueNew = (row.get("amountDueNew") != null) ? ((Number) row.get("amountDueNew")).intValue() : 0;
-            Integer amountBilled = (row.get("amountBilled") != null) ? ((Number) row.get("amountBilled")).intValue() : 0;
+            Double poOrderQuantity = (row.get("poOrderQuantity") != null) ? ((Number) row.get("poOrderQuantity")).doubleValue() : 0.0;
+            Double poQtyNew = (row.get("poQtyNew") != null) ? ((Number) row.get("poQtyNew")).doubleValue() : 0;
+            Double quantityReceived = (row.get("quantityReceived") != null) ? ((Number) row.get("quantityReceived")).doubleValue() : 0.0;
+            Double quantityDueOld = (row.get("quantityDueOld") != null) ? ((Number) row.get("quantityDueOld")).doubleValue() : 0.0;
+            Double quantityDueNew = (row.get("quantityDueNew") != null) ? ((Number) row.get("quantityDueNew")).doubleValue() : 0.0;
+            Double quantityBilled = (row.get("quantityBilled") != null) ? ((Number) row.get("quantityBilled")).doubleValue() : 0.0;
+            Double unitPriceInPoCurrency = (row.get("unitPriceInPoCurrency") != null) ? ((Number) row.get("unitPriceInPoCurrency")).doubleValue() : 0.0;
+            Double unitPriceInSAR = (row.get("unitPriceInSAR") != null) ? ((Number) row.get("unitPriceInSAR")).doubleValue() : 0.0;
+            Double linePriceInPoCurrency = (row.get("linePriceInPoCurrency") != null) ? ((Number) row.get("linePriceInPoCurrency")).doubleValue() : 0.0;
+            Double linePriceInSAR = (row.get("linePriceInSAR") != null) ? ((Number) row.get("linePriceInSAR")).doubleValue() : 0.0;
+            Double amountReceived = (row.get("amountReceived") != null) ? ((Number) row.get("amountReceived")).doubleValue() : 0.0;
+            Double amountDue = (row.get("amountDue") != null) ? ((Number) row.get("amountDue")).doubleValue() : 0.0;
+            Double amountDueNew = (row.get("amountDueNew") != null) ? ((Number) row.get("amountDueNew")).doubleValue() : 0.0;
+            Double amountBilled = (row.get("amountBilled") != null) ? ((Number) row.get("amountBilled")).doubleValue() : 0.0;
+            Double descopedLinePriceInPoCurrency = (row.get("descopedLinePriceInPoCurrency") != null) ? ((Number) row.get("descopedLinePriceInPoCurrency")).doubleValue() : 0.0;
+            Double newLinePriceInPoCurrency = (row.get("newLinePriceInPoCurrency") != null) ? ((Number) row.get("newLinePriceInPoCurrency")).doubleValue() : 0.0;
 
             Map<String, Object> groupedRow = groupedResults.get(poNumber);
-            groupedRow.put("totalPoQtyNew", (Integer) groupedRow.get("totalPoQtyNew") + poQtyNew);
-            groupedRow.put("totalQuantityReceived", (Integer) groupedRow.get("totalQuantityReceived") + quantityReceived);
-            groupedRow.put("totalQuantityDueOld", (Integer) groupedRow.get("totalQuantityDueOld") + quantityDueOld);
-            groupedRow.put("totalQuantityDueNew", (Integer) groupedRow.get("totalQuantityDueNew") + quantityDueNew);
-            groupedRow.put("totalQuantityBilled", (Integer) groupedRow.get("totalQuantityBilled") + quantityBilled);
-            groupedRow.put("totalpoOrderQuantity", (Integer) groupedRow.get("totalpoOrderQuantity") + poOrderQuantity);
-            groupedRow.put("totalunitPriceInPoCurrency", (Integer) groupedRow.get("totalunitPriceInPoCurrency") + unitPriceInPoCurrency);
-            groupedRow.put("totalunitPriceInSAR", (Integer) groupedRow.get("totalunitPriceInSAR") + unitPriceInSAR);
-            groupedRow.put("totallinePriceInPoCurrency", (Integer) groupedRow.get("totallinePriceInPoCurrency") + linePriceInPoCurrency);
-            groupedRow.put("totallinePriceInSAR", (Integer) groupedRow.get("totallinePriceInSAR") + linePriceInSAR);
-            groupedRow.put("totalamountReceived", (Integer) groupedRow.get("totalamountReceived") + amountReceived);
-            groupedRow.put("totalamountDue", (Integer) groupedRow.get("totalamountDue") + amountDue);
-            groupedRow.put("totalamountDueNew", (Integer) groupedRow.get("totalamountDueNew") + amountDueNew);
-            groupedRow.put("totalamountBilled", (Integer) groupedRow.get("totalamountBilled") + amountBilled);
+            groupedRow.put("totalPoQtyNew", (Double) groupedRow.get("totalPoQtyNew") + poQtyNew);
+            groupedRow.put("totalQuantityReceived", (Double) groupedRow.get("totalQuantityReceived") + quantityReceived);
+            groupedRow.put("totalQuantityDueOld", (Double) groupedRow.get("totalQuantityDueOld") + quantityDueOld);
+            groupedRow.put("totalQuantityDueNew", (Double) groupedRow.get("totalQuantityDueNew") + quantityDueNew);
+            groupedRow.put("totalQuantityBilled", (Double) groupedRow.get("totalQuantityBilled") + quantityBilled);
+            groupedRow.put("totalpoOrderQuantity", (Double) groupedRow.get("totalpoOrderQuantity") + poOrderQuantity);
+            groupedRow.put("totalunitPriceInPoCurrency", (Double) groupedRow.get("totalunitPriceInPoCurrency") + unitPriceInPoCurrency);
+            groupedRow.put("totalunitPriceInSAR", (Double) groupedRow.get("totalunitPriceInSAR") + unitPriceInSAR);
+            groupedRow.put("totallinePriceInPoCurrency", (Double) groupedRow.get("totallinePriceInPoCurrency") + linePriceInPoCurrency);
+            groupedRow.put("totallinePriceInSAR", (Double) groupedRow.get("totallinePriceInSAR") + linePriceInSAR);
+            groupedRow.put("totalamountReceived", (Double) groupedRow.get("totalamountReceived") + amountReceived);
+            groupedRow.put("totalamountDue", (Double) groupedRow.get("totalamountDue") + amountDue);
+            groupedRow.put("totalamountDueNew", (Double) groupedRow.get("totalamountDueNew") + amountDueNew);
+            groupedRow.put("totalamountBilled", (Double) groupedRow.get("totalamountBilled") + amountBilled);
+            groupedRow.put("totalDescopedLinePriceInPoCurrency", (Double) groupedRow.get("totalDescopedLinePriceInPoCurrency") + descopedLinePriceInPoCurrency);
+            groupedRow.put("totalNewLinePriceInPoCurrency", (Double) groupedRow.get("totalNewLinePriceInPoCurrency") + newLinePriceInPoCurrency);
 
         }
 
@@ -255,10 +299,10 @@ public class ReportsController {
         JsonObject obj = new JsonParser().parse(req).getAsJsonObject();
         String poNumber = obj.get("poNumber").getAsString();
         String sql = "SELECT UPL.recordNo, UPL.recordDatetime, UPL.vendor, UPL.manufacturer, UPL.countryOfOrigin, UPL.projectName,  UPL.poType,  UPL.releaseNumber,  UPL.poNumber, UPL.poLineNumber,    UPL.uplLine,  UPL.poLineItemType, UPL.poLineItemCode, UPL.poLineDescription, UPL.uplLineItemType,UPL.uplLineItemCode,UPL.uplLineDescription,UPL.zainItemCategoryCode,    UPL.zainItemCategoryDescription, UPL.uplItemSerialized, UPL.activeOrPassive, UPL.uom, UPL.currency, UPL.poLineQuantity, UPL.poLineUnitPrice, UPL.uplLineQuantity,   UPL.uplLineUnitPrice,  UPL.substituteItemCode,  UPL.remarks,  UPL.dptApprover1, UPL.dptApprover2, UPL.dptApprover3, UPL.dptApprover4,UPL.regionalApprover,UPL.createdBy,\n"
-                + "    UPL.createdByName FROM tb_PurchaseOrderUPL UPL;";
+                + "    UPL.createdByName, UPL.uplModifiedBy as updatedByName, UPL.uplModifiedDate AS updatedDatetime FROM tb_PurchaseOrderUPL UPL;";
         if (!poNumber.equalsIgnoreCase("0")) {
             sql = "SELECT UPL.recordNo, UPL.recordDatetime, UPL.vendor, UPL.manufacturer, UPL.countryOfOrigin, UPL.projectName,  UPL.poType,  UPL.releaseNumber,  UPL.poNumber, UPL.poLineNumber,    UPL.uplLine,  UPL.poLineItemType, UPL.poLineItemCode, UPL.poLineDescription, UPL.uplLineItemType,UPL.uplLineItemCode,UPL.uplLineDescription,UPL.zainItemCategoryCode,    UPL.zainItemCategoryDescription, UPL.uplItemSerialized, UPL.activeOrPassive, UPL.uom, UPL.currency, UPL.poLineQuantity, UPL.poLineUnitPrice, UPL.uplLineQuantity,   UPL.uplLineUnitPrice,  UPL.substituteItemCode,  UPL.remarks,  UPL.dptApprover1, UPL.dptApprover2, UPL.dptApprover3, UPL.dptApprover4,UPL.regionalApprover,UPL.createdBy,\n"
-                    + "    UPL.createdByName FROM tb_PurchaseOrderUPL UPL  WHERE UPL.poNumber='" + poNumber + "'";
+                    + "    UPL.createdByName, UPL.uplModifiedBy as updatedByName, UPL.uplModifiedDate AS updatedDatetime FROM tb_PurchaseOrderUPL UPL  WHERE UPL.poNumber='" + poNumber + "'";
         }
         List<Map<String, Object>> result = jdbcTemplate.queryForList(sql);
         return result;
@@ -398,8 +442,7 @@ public class ReportsController {
                 return ("No UPL Data found.");
             }
         } catch (Exception exc) {
-            String err = exc.toString();
-            helper.logToFile(genHeader("N/A", "getallupls", "getallupls") + "getallupls error " + err, "INFO");
+            loggger.info("Exception " + exc.toString());
         }
         return null;
     }

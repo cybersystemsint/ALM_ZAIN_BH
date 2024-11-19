@@ -30,6 +30,7 @@ public class tb_Approval_Log {
     public Integer createdBy;
     public String approver;
     public String region;
+    public String itemCategoryCode;
 
     public long getRecordNo() {
         return recordNo;
@@ -102,5 +103,15 @@ public class tb_Approval_Log {
     public void setRegion(String region) {
         this.region = region;
     }
+
+    public String getItemCategoryCode() {
+        return itemCategoryCode;
+    }
+
+    public void setItemCategoryCode(String itemCategoryCode) {
+        this.itemCategoryCode = itemCategoryCode;
+    }
+    
+    
 
 }

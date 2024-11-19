@@ -11,8 +11,6 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Table;
 
-
-        
 /**
  *
  * @author jgithu
@@ -46,9 +44,9 @@ public class tb_PurchaseOrderUPL {
     public String activeOrPassive;
     public String uom;
     public String currency;
-    public Integer poLineQuantity;
+    public double poLineQuantity;
     public double poLineUnitPrice;
-    public Integer uplLineQuantity;
+    public double uplLineQuantity;
     public double uplLineUnitPrice;
     public String substituteItemCode;
     public String remarks;
@@ -59,6 +57,8 @@ public class tb_PurchaseOrderUPL {
     private String regionalApprover;
     public Integer createdBy;
     public String createdByName;
+    public String uplModifiedBy;
+    public Date uplModifiedDate;
 
     public long getRecordNo() {
         return recordNo;
@@ -244,11 +244,11 @@ public class tb_PurchaseOrderUPL {
         this.currency = currency;
     }
 
-    public Integer getPoLineQuantity() {
+    public double getPoLineQuantity() {
         return poLineQuantity;
     }
 
-    public void setPoLineQuantity(Integer poLineQuantity) {
+    public void setPoLineQuantity(double poLineQuantity) {
         this.poLineQuantity = poLineQuantity;
     }
 
@@ -260,11 +260,11 @@ public class tb_PurchaseOrderUPL {
         this.poLineUnitPrice = poLineUnitPrice;
     }
 
-    public Integer getUplLineQuantity() {
+    public double getUplLineQuantity() {
         return uplLineQuantity;
     }
 
-    public void setUplLineQuantity(Integer uplLineQuantity) {
+    public void setUplLineQuantity(double uplLineQuantity) {
         this.uplLineQuantity = uplLineQuantity;
     }
 
@@ -346,6 +346,22 @@ public class tb_PurchaseOrderUPL {
 
     public void setCreatedByName(String createdByName) {
         this.createdByName = createdByName;
+    }
+
+    public String getUplModifiedBy() {
+        return uplModifiedBy;
+    }
+
+    public void setUplModifiedBy(String uplModifiedBy) {
+        this.uplModifiedBy = uplModifiedBy;
+    }
+
+    public Date getUplModifiedDate() {
+        return uplModifiedDate;
+    }
+
+    public void setUplModifiedDate(Date uplModifiedDate) {
+        this.uplModifiedDate = uplModifiedDate;
     }
 
 }

@@ -5,13 +5,13 @@ import com.telkom.almKSAZain.repo.dccstatusrepo;
 import com.telkom.almKSAZain.repo.DccLineRepo;
 import com.telkom.almKSAZain.repo.uplrepo;
 import com.telkom.almKSAZain.repo.polnrepo;
-//import com.telkom.almKSAZain.repo.inventoryrepo;
 import com.telkom.almKSAZain.repo.supplierrepo;
 import com.telkom.almKSAZain.repo.pohdrepo;
 import com.telkom.almKSAZain.model.pohddata;
 import com.telkom.almKSAZain.model.tbPurchaseOrder;
+import com.telkom.almKSAZain.model.tbScope;
+import com.telkom.almKSAZain.model.tbScopeApprovalLevels;
 import com.telkom.almKSAZain.model.DCCLineItem;
-//import com.telkom.almKSAZain.model.inventorydata;
 import com.telkom.almKSAZain.model.dccstatus;
 import com.telkom.almKSAZain.model.supplierdata;
 import com.telkom.almKSAZain.model.DCC;
@@ -22,8 +22,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
-import com.jcraft.jsch.*;
-import com.jcraft.jsch.ChannelSftp.LsEntry;
 import com.telkom.almKSAZain.helper.helper;
 import com.telkom.almKSAZain.model.FileRecord;
 import com.telkom.almKSAZain.model.tb_Approval_Log;
@@ -34,32 +32,31 @@ import com.telkom.almKSAZain.repo.tbArcApprovalRecordsRepo;
 import com.telkom.almKSAZain.repo.tbPurchaseOrderRepo;
 import com.telkom.almKSAZain.repo.tbPurchaseOrderUPLRepo;
 import com.telkom.almKSAZain.model.tb_Arc_ApprovalRecords;
+import com.telkom.almKSAZain.model.tb_ChargeAccount;
+import com.telkom.almKSAZain.model.tb_ErrorMessage;
+import com.telkom.almKSAZain.model.tb_Site;
+import com.telkom.almKSAZain.model.tb_Region;
+import com.telkom.almKSAZain.model.tbCategoryApprovalLevels;
+import com.telkom.almKSAZain.model.tbItemCodeSubstitute;
+import com.telkom.almKSAZain.repo.tbCategoryApprovalLevelRepo;
+import com.telkom.almKSAZain.repo.tbSiteRepo;
+import com.telkom.almKSAZain.repo.tbRegionRepo;
+import com.telkom.almKSAZain.repo.tbItemCodeSubstituteRepo;
+import com.telkom.almKSAZain.repo.tbErrorMessageRepo;
+import com.telkom.almKSAZain.repo.tbChargeAccountRepo;
+import com.telkom.almKSAZain.repo.tbScopeApprovalLevelsRepo;
+import com.telkom.almKSAZain.repo.tbScopeRepo;
 import com.telkom.almKSAZain.utlities.Httpcall;
-import org.apache.commons.net.ftp.FTPClient;
-import org.apache.commons.net.ftp.FTPFile;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.client.RestTemplate;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.NodeList;
-
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.*;
 import java.math.BigDecimal;
 import java.net.InetAddress;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
@@ -67,8 +64,11 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.apache.logging.log4j.LogManager;
 import org.json.JSONException;
 import org.springframework.web.bind.annotation.RequestPart;
@@ -98,6 +98,7 @@ public class APIController {
 
     @Autowired
     dccstatusrepo dccstatrepo;
+
     @Autowired
     fileRecordRepo fileRepo;
 
@@ -112,6 +113,30 @@ public class APIController {
 
     @Autowired
     tbArcApprovalRecordsRepo arcApprovalRecordsRepo;
+
+    @Autowired
+    tbChargeAccountRepo chargeAccountRepo;
+
+    @Autowired
+    tbErrorMessageRepo errorMessageRepo;
+
+    @Autowired
+    tbRegionRepo regionRepo;
+
+    @Autowired
+    tbSiteRepo siteRepo;
+
+    @Autowired
+    tbCategoryApprovalLevelRepo categoryApprovalLevelRepo;
+
+    @Autowired
+    tbItemCodeSubstituteRepo itemCodeSubstituteRepo;
+
+    @Autowired
+    tbScopeRepo scopeRepo;
+
+    @Autowired
+    tbScopeApprovalLevelsRepo scopeApprovalLevelsRepo;
 
     Httpcall utils = new Httpcall();
 
@@ -141,33 +166,301 @@ public class APIController {
     String domainfile = "";
     String subdomainfile = "";
 
+    //NEW END POINT TO CREATE ITE CODES SUBSTITUTES  
+    @PostMapping(value = "/createItemCodeSubstitutes")
+    @CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
+    public Map<String, String> createItemCodeSubstitutes(@RequestBody String req) throws ParseException, ParseException, ParseException {
+        String batchfilename = "";
+        long recordNo = 0;
+
+        loggger.info("createItemCodeSubstitutes Req |  " + req);
+
+        try {
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd"); // Adjust the pattern as per your date format
+            LocalDateTime now = LocalDateTime.now();
+            JSONArray jsonArray = new JSONArray(req);
+            String responseinfo = "Failed to save or data";
+            List<String> validationErrors = new ArrayList<>();
+            for (int i = 0; i < jsonArray.length(); i++) {
+                JSONObject jsonObject = jsonArray.getJSONObject(i);
+                recordNo = Integer.parseInt(jsonObject.getString("recordNo"));
+
+                tbItemCodeSubstitute spldt = itemCodeSubstituteRepo.findByRecordNo(recordNo);
+                if (spldt != null) {
+
+                    spldt.setItemCode(jsonObject.getString("itemCode").trim());
+                    spldt.setRelatedItemCode(jsonObject.getString("relatedItemCode").trim());
+                    spldt.setReciprocalFlag(jsonObject.getString("reciprocalFlag").trim());
+                    spldt.setUpdatedBy(jsonObject.getString("updatedBy"));
+                    java.util.Date parsedDate = dateFormat.parse(now.toString());
+                    java.sql.Date sqlDate = new java.sql.Date(parsedDate.getTime());
+                    // spldt.setUpdatedDate(sqlDate);
+
+                    try {
+                        itemCodeSubstituteRepo.save(spldt);
+                        responseinfo = "Record Updated Success";
+                    } catch (Exception excc) {
+
+                        loggger.info("Exception  |  " + excc.getMessage());
+                        responseinfo = "Item Code Substitute update cannot be processed at this time. Please check again later ";
+                    }
+
+                } else {
+
+//                    List<tbItemCodeSubstitute> validateItemCodes = itemCodeSubstituteRepo.findByItemCodeAndRelatedItemCode(jsonObject.getString("itemCode"), jsonObject.getString("relatedItemCode"));
+//                    if (!validateItemCodes.isEmpty()) {
+                    tbItemCodeSubstitute nwspldt = new tbItemCodeSubstitute();
+                    java.util.Date parsedDate = dateFormat.parse(now.toString());
+                    java.sql.Date sqlDate = new java.sql.Date(parsedDate.getTime());
+                    nwspldt.setRecordDateTime(sqlDate);
+                    nwspldt.setCreatedDatetime(sqlDate);
+                    //  nwspldt.(sqlDate);
+                    nwspldt.setItemCode(jsonObject.getString("itemCode").trim());
+                    nwspldt.setRelatedItemCode(jsonObject.getString("relatedItemCode").trim());
+                    nwspldt.setReciprocalFlag(jsonObject.getString("reciprocalFlag").trim());
+                    nwspldt.setCreatedBy(jsonObject.getString("createdBy"));
+
+                    try {
+                        itemCodeSubstituteRepo.save(nwspldt);
+                        responseinfo = "Record Created Success";
+
+                    } catch (JSONException excc) {
+                        loggger.info("Exception  |  " + excc.getMessage());
+                        responseinfo = "Item Code Substitute creation cannot be processed at this time. Please check again later ";
+                    }
+//                    } else {
+//                        validationErrors.add(jsonObject.getString("chargeAccount"));
+//                    }
+//                    } else {
+//                        validationErrors.add(jsonObject.getString("relatedItemCode"));
+//                    }
+                }
+
+            }
+            if (!responseinfo.contains("Success")) {
+                batchfilename = getbatchfilename("FailedUpload");
+                helper.logBatchFile(responseinfo, true, batchfilename);
+                return response("Error", responseinfo);
+            } else if (!validationErrors.isEmpty()) {
+                batchfilename = getbatchfilename("FailedUpload");
+                helper.logBatchFile(responseinfo, true, batchfilename);
+                return response("Error", "Item code Substitutes : " + String.join(", ", validationErrors) + " have already been created. Duplicates not allowed");
+            } else {
+                return response("Success", "Complete");
+            }
+        } catch (NumberFormatException | JSONException exc) {
+            net.minidev.json.JSONObject response = new net.minidev.json.JSONObject();
+            loggger.info("Exception |  " + exc);
+
+            return response("Error", exc.getMessage());
+        }
+    }
+
+    //NEW END POINT TO CREATE ERROR MESSAGES 
+    @PostMapping(value = "/createErrorMessage")
+    @CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
+    public Map<String, String> createErrorMessage(@RequestBody String req) throws ParseException, ParseException, ParseException {
+        String batchfilename = "";
+        long recordNo = 0;
+
+        loggger.info("createErrorMessage Req |  " + req);
+
+        try {
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd"); // Adjust the pattern as per your date format
+            LocalDateTime now = LocalDateTime.now();
+            JSONArray jsonArray = new JSONArray(req);
+            String responseinfo = "Failed to save or data";
+            //List<String> validationErrors = new ArrayList<>();
+            for (int i = 0; i < jsonArray.length(); i++) {
+                JSONObject jsonObject = jsonArray.getJSONObject(i);
+                recordNo = Integer.parseInt(jsonObject.getString("recordNo"));
+
+                tb_ErrorMessage spldt = errorMessageRepo.findByRecordNo(recordNo);
+                if (spldt != null) {
+
+                    spldt.setModule(jsonObject.getString("module").trim());
+                    spldt.setErrorCode(jsonObject.getString("errorCode").trim());
+                    spldt.setErrorMessage(jsonObject.getString("errorMessage").trim());
+                    spldt.setOperation(jsonObject.getString("operation").trim());
+                    spldt.setSeverity(jsonObject.getString("severity").trim().toUpperCase(Locale.ITALY));
+
+                    spldt.setUpdatedBy(jsonObject.getString("updatedBy"));
+                    java.util.Date parsedDate = dateFormat.parse(now.toString());
+                    java.sql.Date sqlDate = new java.sql.Date(parsedDate.getTime());
+                    spldt.setUpdatedDatetime(sqlDate);
+                    try {
+                        errorMessageRepo.save(spldt);
+                        responseinfo = "Record Updated Success";
+                    } catch (Exception excc) {
+
+                        loggger.info("Exception  |  " + excc.getMessage());
+                        responseinfo = "Charge Account update cannot be processed at this time. Please check again later ";
+                    }
+
+                } else {
+
+                    tb_ErrorMessage nwspldt = new tb_ErrorMessage();
+
+                    nwspldt.setModule(jsonObject.getString("module").trim());
+                    nwspldt.setErrorCode(jsonObject.getString("errorCode").trim());
+                    nwspldt.setErrorMessage(jsonObject.getString("errorMessage").trim());
+                    nwspldt.setOperation(jsonObject.getString("operation").trim());
+                    nwspldt.setSeverity(jsonObject.getString("severity").trim().toUpperCase(Locale.ITALY));
+                    nwspldt.setCreatedBy(jsonObject.getString("createdBy"));
+                    try {
+                        errorMessageRepo.save(nwspldt);
+                        responseinfo = "Record Created Success";
+                    } catch (JSONException excc) {
+                        loggger.info("Exception  |  " + excc.getMessage());
+                        responseinfo = " creation cannot be processed at this time. Please check again later " + excc.getMessage();
+                    }
+                }
+            }
+            if (!responseinfo.contains("Success")) {
+                batchfilename = getbatchfilename("FailedUpload");
+                helper.logBatchFile(responseinfo, true, batchfilename);
+                return response("Error", responseinfo);
+            } else {
+                return response("Success", "Complete");
+            }
+        } catch (NumberFormatException | JSONException exc) {
+
+            return response("Error", exc.getMessage());
+        }
+    }
+
+    //NEW END POINT TO CREATE CHARGE ACCOUNTS 
+    @PostMapping(value = "/createChargeAccount")
+    @CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
+    public Map<String, String> createChargeAccount(@RequestBody String req) throws ParseException, ParseException, ParseException {
+        String batchfilename = "";
+        long recordNo = 0;
+
+        loggger.info("ChargeAccountRequest |  " + req);
+
+        try {
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd"); // Adjust the pattern as per your date format
+            LocalDateTime now = LocalDateTime.now();
+            JSONArray jsonArray = new JSONArray(req);
+            String responseinfo = "Failed to save or data";
+            List<String> validationErrors = new ArrayList<>();
+            for (int i = 0; i < jsonArray.length(); i++) {
+                JSONObject jsonObject = jsonArray.getJSONObject(i);
+                recordNo = Integer.parseInt(jsonObject.getString("recordNo"));
+
+                tb_ChargeAccount spldt = chargeAccountRepo.findByRecordNo(recordNo);
+                if (spldt != null) {
+
+                    spldt.setChargeAccount(jsonObject.getString("chargeAccount").trim());
+                    spldt.setOrgCode(jsonObject.getString("orgCode").trim());
+                    spldt.setOrgName(jsonObject.getString("orgName").trim());
+                    spldt.setSubInventory(jsonObject.getString("subInventory").trim());
+                    spldt.setUpdatedBy(jsonObject.getString("updatedBy"));
+                    java.util.Date parsedDate = dateFormat.parse(now.toString());
+                    java.sql.Date sqlDate = new java.sql.Date(parsedDate.getTime());
+                    spldt.setUpdatedDate(sqlDate);
+
+                    try {
+                        chargeAccountRepo.save(spldt);
+                        responseinfo = "Record Updated Success";
+                    } catch (Exception excc) {
+
+                        loggger.info("Exception  |  " + excc.getMessage());
+                        responseinfo = "Charge Account update cannot be processed at this time. Please check again later ";
+                    }
+
+                } else {
+
+                    // tb_ChargeAccount topRecord = chargeAccountRepo.findByChargeAccount(jsonObject.getString("chargeAccount"));
+                    //  String chargeAccount = topRecord != null ? String.valueOf(topRecord.getChargeAccount()) : "";
+                    //  if (chargeAccount.length() < 1) {
+                    tb_ChargeAccount nwspldt = new tb_ChargeAccount();
+                    java.util.Date parsedDate = dateFormat.parse(now.toString());
+                    java.sql.Date sqlDate = new java.sql.Date(parsedDate.getTime());
+                    nwspldt.setRecordDatetime(sqlDate);
+                    nwspldt.setChargeAccount(jsonObject.getString("chargeAccount").trim());
+                    nwspldt.setOrgCode(jsonObject.getString("orgCode").trim());
+                    nwspldt.setOrgName(jsonObject.getString("orgName").trim());
+                    nwspldt.setSubInventory(jsonObject.getString("subInventory").trim());
+                    nwspldt.setCreatedBy(jsonObject.getString("createdBy"));
+
+                    try {
+                        chargeAccountRepo.save(nwspldt);
+                        responseinfo = "Record Created Success";
+
+                    } catch (JSONException excc) {
+                        loggger.info("Exception  |  " + excc.getMessage());
+                        responseinfo = "Charge Account creation cannot be processed at this time. Please check again later ";
+                    }
+//                    } else {
+//                        validationErrors.add(jsonObject.getString("chargeAccount"));
+//                    }
+
+                }
+
+            }
+            if (!responseinfo.contains("Success")) {
+                batchfilename = getbatchfilename("FailedUpload");
+                helper.logBatchFile(responseinfo, true, batchfilename);
+                return response("Error", responseinfo);
+            } else if (!validationErrors.isEmpty()) {
+                batchfilename = getbatchfilename("FailedUpload");
+                helper.logBatchFile(responseinfo, true, batchfilename);
+                return response("Error", "Already Existing Charge Accounts: " + String.join(", ", validationErrors));
+            } else {
+                return response("Success", "Complete");
+            }
+        } catch (NumberFormatException | JSONException exc) {
+            net.minidev.json.JSONObject response = new net.minidev.json.JSONObject();
+
+            return response("Error", exc.getMessage());
+        }
+    }
+
+    //===============DELETE CHARGE ACCOUNT =======
+    @PostMapping(value = "/deleteChargeAccount")
+    @CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
+    public Map<String, String> deleteChargeAccount(@RequestBody String req) throws ParseException {
+        JsonObject obj = new JsonParser().parse(req).getAsJsonObject();
+        Integer recordNo = obj.get("recordNo").getAsInt();
+        tb_ChargeAccount spldt = chargeAccountRepo.findByRecordNo(recordNo);
+
+        loggger.info("Delete Charge Account Request |  " + req);
+
+        HashMap<String, String> response = new HashMap<>();
+        if (spldt != null) {
+            try {
+                chargeAccountRepo.delete(spldt);  // Delete the record
+                response.put("responseCode", "0");
+                response.put("responseDesc", "Record Deleted Successfully");
+            } catch (Exception ex) {
+                response.put("responseCode", "1");
+                response.put("responseDesc", "An error occurred while processing your request");
+                response.put("error", ex.getMessage());
+            }
+        } else {
+            response.put("responseCode", "1");
+            response.put("responseDesc", "Record not found for the provided chargeAccount");
+        }
+        loggger.info("Delete Charge Account Response |  " + response);
+
+        return response;
+    }
+
     //=================================NEW PO END POINT FOR NEW PO FORMAT ====
     @PostMapping(value = "/createpo")
     @CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
     public Map<String, String> createpo(@RequestBody String req) throws ParseException, ParseException, ParseException {
         String batchfilename = "";
-        JSONArray jsonArrayresponse = new JSONArray();
         long recordNo = 0;
-        String poId = "";
-        String poDate = "";
-        String supplierId = "";
-        String termsAndConditions = "";
-        String deliveryLocationId = "";
-        String createdBy = "";
-        String status = "";
-
-        helper.logToFile(genHeader("N/A", "ErrorAddingPO_HD", "API") + "EINCOMING REQUEST"
-                + req, "INFO");
-
+        loggger.info("PO CREATE REQUEST |  " + req);
         try {
             SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd"); // Adjust the pattern as per your date format
-            DateTimeFormatter myFormatObj = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
-            LocalDateTime now = LocalDateTime.now();
-            String requesttime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(Calendar.getInstance().getTime());
             JSONArray jsonArray = new JSONArray(req);
             String responseinfo = "Failed to save or data";
 
             List<String> validationErrors = new ArrayList<>();
+            List<String> blanketerrors = new ArrayList<>();
             for (int i = 0; i < jsonArray.length(); i++) {
                 JSONObject jsonObject = jsonArray.getJSONObject(i);
                 recordNo = Integer.parseInt(jsonObject.getString("recordNo"));
@@ -187,12 +480,12 @@ public class APIController {
                     spldt.setItemPartNumber(jsonObject.getString("itemPartNumber").trim());
                     spldt.setPrSubAllow(jsonObject.getBoolean("prSubAllow"));
                     spldt.setCountryOfOrigin(jsonObject.getString("countryOfOrigin").trim());
-                    spldt.setPoOrderQuantity(jsonObject.getInt("poOrderQuantity"));
-                    spldt.setPoQtyNew(jsonObject.getInt("poQtyNew"));
-                    spldt.setQuantityReceived(jsonObject.getInt("quantityReceived"));
-                    spldt.setQuantityDueOld(jsonObject.getInt("quantityDueOld"));
-                    spldt.setQuantityDueNew(jsonObject.getInt("quantityDueNew"));
-                    spldt.setQuantityBilled(jsonObject.getInt("quantityBilled"));
+                    spldt.setPoOrderQuantity(jsonObject.getDouble("poOrderQuantity"));
+                    spldt.setPoQtyNew(jsonObject.getDouble("poQtyNew"));
+                    spldt.setQuantityReceived(jsonObject.getDouble("quantityReceived"));
+                    spldt.setQuantityDueOld(jsonObject.getDouble("quantityDueOld"));
+                    spldt.setQuantityDueNew(jsonObject.getDouble("quantityDueNew"));
+                    spldt.setQuantityBilled(jsonObject.getDouble("quantityBilled"));
                     spldt.setCurrencyCode(jsonObject.getString("currencyCode").trim());
                     spldt.setUnitPriceInPoCurrency(jsonObject.getDouble("unitPriceInPoCurrency"));
                     spldt.setUnitPriceInSAR(jsonObject.getDouble("unitPriceInSAR"));
@@ -210,7 +503,7 @@ public class APIController {
                     spldt.setAuthorisationStatus(jsonObject.getString("authorisationStatus").trim());
                     spldt.setPoClosureStatus(jsonObject.getString("poClosureStatus").trim());
                     spldt.setDepartmentName(jsonObject.getString("departmentName").trim());
-                    spldt.setBusinessOwner(jsonObject.getString("businessOwner").trim());
+                    // spldt.setBusinessOwner(jsonObject.getString("businessOwner").trim());
                     spldt.setPoLineType(jsonObject.getString("poLineType").trim());
                     spldt.setAcceptanceType(jsonObject.getString("acceptanceType").trim());
                     spldt.setCostCenter(jsonObject.getString("costCenter").trim());
@@ -229,7 +522,14 @@ public class APIController {
                     spldt.setCreatedByName(jsonObject.getString("createdByName").trim());
                     String dateApproved = jsonObject.getString("approvedDate");
                     String dateCreated = jsonObject.getString("createdDate");
-
+                    Double unitPrice = jsonObject.optDouble("unitPriceInPoCurrency", 0.0);
+                    Double poQtyNew = jsonObject.optDouble("poQtyNew", 0.0);
+                    Double poOrderQuantity = jsonObject.optDouble("poOrderQuantity", 0.0);
+                    if (poQtyNew > 0) {
+                        Double quantityDiff = poOrderQuantity - poQtyNew;
+                        spldt.setDescopedLinePriceInPoCurrency(quantityDiff * unitPrice);
+                        spldt.setNewLinePriceInPoCurrency(poQtyNew * unitPrice);
+                    }
                     try {
                         java.util.Date parsedDate = dateFormat.parse(dateApproved);
                         java.sql.Date sqlDate = new java.sql.Date(parsedDate.getTime());
@@ -245,132 +545,143 @@ public class APIController {
                         PurchaseOrderRepo.save(spldt);
                         responseinfo = "Record Updated Success";
                     } catch (Exception excc) {
-
-                        System.out.println(excc.getMessage());
-                        helper.logToFile(genHeader("N/A", "ErrorAddingPO_HD", "API") + "ErrorAddingPO_HD PO_HD RecordNo "
-                                + recordNo, "INFO");
+                        loggger.info("Exception |  " + excc.toString());
                         responseinfo = excc.toString();
                     }
-
                 } else {
 
-                    tbPurchaseOrder topRecord = PurchaseOrderRepo.findTopByPoNumberAndLineNumber(jsonObject.getString("poNumber"), String.valueOf(jsonObject.getInt("lineNumber")));
+                    tbPurchaseOrder topRecord = PurchaseOrderRepo.findTopByPoNumberAndLineNumberAndReleaseNum(jsonObject.getString("poNumber"), String.valueOf(jsonObject.getInt("lineNumber")), jsonObject.getString("releaseNum"));
                     String poNum = topRecord != null ? String.valueOf(topRecord.getPoNumber()) : "";
 
                     if (poNum.length() < 1) {
-                        tbPurchaseOrder nwspldt = new tbPurchaseOrder();
-                        nwspldt.setPoNumber(jsonObject.getString("poNumber").trim());
-                        nwspldt.setTypeLookUpCode(jsonObject.getString("typeLookUpCode").trim());
-                        nwspldt.setBlanketTotalAmount(jsonObject.getDouble("blanketTotalAmount"));
-                        nwspldt.setReleaseNum(jsonObject.getString("releaseNum").trim());
-                        nwspldt.setLineNumber(jsonObject.getInt("lineNumber"));
-                        nwspldt.setPrNum(jsonObject.getString("prNum").trim());
-                        nwspldt.setProjectName(jsonObject.getString("projectName").trim());
-                        nwspldt.setLineCancelFlag(jsonObject.getBoolean("lineCancelFlag"));
-                        nwspldt.setCancelReason(jsonObject.getString("cancelReason").trim());
-                        nwspldt.setItemPartNumber(jsonObject.getString("itemPartNumber").trim());
-                        nwspldt.setPrSubAllow(jsonObject.getBoolean("prSubAllow"));
-                        nwspldt.setCountryOfOrigin(jsonObject.getString("countryOfOrigin").trim());
-                        nwspldt.setPoOrderQuantity(jsonObject.getInt("poOrderQuantity"));
-                        nwspldt.setPoQtyNew(jsonObject.getInt("poQtyNew"));
-                        nwspldt.setQuantityReceived(jsonObject.getInt("quantityReceived"));
-                        nwspldt.setQuantityDueOld(jsonObject.getInt("quantityDueOld"));
-                        nwspldt.setQuantityDueNew(jsonObject.getInt("quantityDueNew"));
-                        nwspldt.setQuantityBilled(jsonObject.getInt("quantityBilled"));
-                        nwspldt.setCurrencyCode(jsonObject.getString("currencyCode").trim());
-                        nwspldt.setUnitPriceInPoCurrency(jsonObject.getDouble("unitPriceInPoCurrency"));
-                        nwspldt.setUnitPriceInSAR(jsonObject.getDouble("unitPriceInSAR"));
-                        nwspldt.setLinePriceInPoCurrency(jsonObject.getDouble("linePriceInPoCurrency"));
-                        nwspldt.setLinePriceInSAR(jsonObject.getDouble("linePriceInSAR"));
-                        nwspldt.setAmountReceived(jsonObject.getDouble("amountReceived"));
-                        nwspldt.setAmountDue(jsonObject.getDouble("amountDue"));
-                        nwspldt.setAmountDueNew(jsonObject.getDouble("amountDueNew"));
-                        nwspldt.setAmountBilled(jsonObject.getDouble("amountBilled"));
-                        nwspldt.setPoLineDescription(jsonObject.getString("poLineDescription").trim());
-                        nwspldt.setOrganizationName(jsonObject.getString("organizationName").trim());
-                        nwspldt.setOrganizationCode(jsonObject.getString("organizationCode").trim());
-                        nwspldt.setSubInventoryCode(jsonObject.getString("subInventoryCode").trim());
-                        nwspldt.setReceiptRouting(jsonObject.getString("receiptRouting").trim());
-                        nwspldt.setAuthorisationStatus(jsonObject.getString("authorisationStatus").trim());
-                        nwspldt.setPoClosureStatus(jsonObject.getString("poClosureStatus").trim());
-                        nwspldt.setDepartmentName(jsonObject.getString("departmentName").trim());
-                        nwspldt.setBusinessOwner(jsonObject.getString("businessOwner").trim());
-                        nwspldt.setPoLineType(jsonObject.getString("poLineType").trim());
-                        nwspldt.setAcceptanceType(jsonObject.getString("acceptanceType").trim());
-                        nwspldt.setCostCenter(jsonObject.getString("costCenter").trim());
-                        nwspldt.setSerialControl(jsonObject.getString("serialControl").trim());
-                        nwspldt.setVendorSerialNumberYN(jsonObject.getString("vendorSerialNumberYN").trim());
-                        nwspldt.setItemType(jsonObject.getString("itemType").trim());
-                        nwspldt.setItemCategoryInventory(jsonObject.getString("itemCategoryInventory").trim());
-                        nwspldt.setInventoryCategoryDescription(jsonObject.getString("inventoryCategoryDescription").trim());
-                        nwspldt.setItemCategoryFA(jsonObject.getString("itemCategoryFA").trim());
-                        nwspldt.setFACategoryDescription(jsonObject.getString("FACategoryDescription").trim());
-                        nwspldt.setItemCategoryPurchasing(jsonObject.getString("itemCategoryPurchasing").trim());
-                        nwspldt.setPurchasingCategoryDescription(jsonObject.getString("purchasingCategoryDescription").trim());
-                        nwspldt.setVendorName(jsonObject.getString("vendorName").trim());
-                        nwspldt.setVendorNumber(jsonObject.getString("vendorNumber").trim());
-                        nwspldt.setCreatedBy(jsonObject.getInt("createdById"));
-                        nwspldt.setCreatedByName(jsonObject.getString("createdByName").trim());
-                        String dateApproved = jsonObject.getString("approvedDate");
-                        String dateCreated = jsonObject.getString("createdDate");
 
-                        try {
-                            java.util.Date parsedDate = dateFormat.parse(dateApproved);
-                            java.sql.Date sqlDate = new java.sql.Date(parsedDate.getTime());
-                            java.util.Date newDate = dateFormat.parse(dateCreated);
-                            java.sql.Date sqlcreatedDate = new java.sql.Date(newDate.getTime());
-                            nwspldt.setApprovedDate(sqlDate);
-                            nwspldt.setCreatedDate(sqlcreatedDate);
-                        } catch (ParseException ex) {
-                            java.util.logging.Logger.getLogger(APIController.class.getName()).log(Level.SEVERE, null, ex);
+                        String typelookup = jsonObject.getString("typeLookUpCode").trim();
+                        String releaseNum = jsonObject.getString("releaseNum").trim();
+
+                        // if (typelookup.equalsIgnoreCase("BLANKET") || typelookup.equalsIgnoreCase("STANDARD")) {
+                        if (typelookup.equalsIgnoreCase("BLANKET") && releaseNum.equalsIgnoreCase("0")) {
+                            blanketerrors.add(jsonObject.getString("poNumber"));
+                        } else {
+
+                            tbPurchaseOrder nwspldt = new tbPurchaseOrder();
+                            if (typelookup.equalsIgnoreCase("BLANKET")) {
+                                nwspldt.setPoNumber(jsonObject.getString("poNumber").trim() + "-" + releaseNum);
+                            } else {
+                                nwspldt.setPoNumber(jsonObject.getString("poNumber").trim());
+                            }
+                            //nwspldt.setPoNumber(jsonObject.getString("poNumber").trim());
+                            nwspldt.setTypeLookUpCode(jsonObject.getString("typeLookUpCode").trim());
+                            nwspldt.setBlanketTotalAmount(jsonObject.getDouble("blanketTotalAmount"));
+                            nwspldt.setReleaseNum(jsonObject.getString("releaseNum").trim());
+                            nwspldt.setLineNumber(jsonObject.getInt("lineNumber"));
+                            nwspldt.setPrNum(jsonObject.getString("prNum").trim());
+                            nwspldt.setProjectName(jsonObject.getString("projectName").trim());
+                            nwspldt.setLineCancelFlag(jsonObject.getBoolean("lineCancelFlag"));
+                            nwspldt.setCancelReason(jsonObject.getString("cancelReason").trim());
+                            nwspldt.setItemPartNumber(jsonObject.getString("itemPartNumber").trim());
+                            nwspldt.setPrSubAllow(jsonObject.getBoolean("prSubAllow"));
+                            nwspldt.setCountryOfOrigin(jsonObject.getString("countryOfOrigin").trim());
+                            nwspldt.setPoOrderQuantity(jsonObject.getDouble("poOrderQuantity"));
+                            nwspldt.setPoQtyNew(jsonObject.getDouble("poQtyNew"));
+                            nwspldt.setQuantityReceived(jsonObject.getDouble("quantityReceived"));
+                            nwspldt.setQuantityDueOld(jsonObject.getDouble("quantityDueOld"));
+                            nwspldt.setQuantityDueNew(jsonObject.getDouble("quantityDueNew"));
+                            nwspldt.setQuantityBilled(jsonObject.getDouble("quantityBilled"));
+                            nwspldt.setCurrencyCode(jsonObject.getString("currencyCode").trim());
+                            nwspldt.setUnitPriceInPoCurrency(jsonObject.getDouble("unitPriceInPoCurrency"));
+                            nwspldt.setUnitPriceInSAR(jsonObject.getDouble("unitPriceInSAR"));
+                            nwspldt.setLinePriceInPoCurrency(jsonObject.getDouble("linePriceInPoCurrency"));
+                            nwspldt.setLinePriceInSAR(jsonObject.getDouble("linePriceInSAR"));
+                            nwspldt.setAmountReceived(jsonObject.getDouble("amountReceived"));
+                            nwspldt.setAmountDue(jsonObject.getDouble("amountDue"));
+                            nwspldt.setAmountDueNew(jsonObject.getDouble("amountDueNew"));
+                            nwspldt.setAmountBilled(jsonObject.getDouble("amountBilled"));
+                            nwspldt.setPoLineDescription(jsonObject.getString("poLineDescription").trim());
+                            nwspldt.setOrganizationName(jsonObject.getString("organizationName").trim());
+                            nwspldt.setOrganizationCode(jsonObject.getString("organizationCode").trim());
+                            nwspldt.setSubInventoryCode(jsonObject.getString("subInventoryCode").trim());
+                            nwspldt.setReceiptRouting(jsonObject.getString("receiptRouting").trim());
+                            nwspldt.setAuthorisationStatus(jsonObject.getString("authorisationStatus").trim());
+                            nwspldt.setPoClosureStatus(jsonObject.getString("poClosureStatus").trim());
+                            nwspldt.setDepartmentName(jsonObject.getString("departmentName").trim());
+                            nwspldt.setPoLineType(jsonObject.getString("poLineType").trim());
+                            nwspldt.setAcceptanceType(jsonObject.getString("acceptanceType").trim());
+                            nwspldt.setCostCenter(jsonObject.getString("costCenter").trim());
+                            nwspldt.setSerialControl(jsonObject.getString("serialControl").trim());
+                            nwspldt.setVendorSerialNumberYN(jsonObject.getString("vendorSerialNumberYN").trim());
+                            nwspldt.setItemType(jsonObject.getString("itemType").trim());
+                            nwspldt.setItemCategoryInventory(jsonObject.getString("itemCategoryInventory").trim());
+                            nwspldt.setInventoryCategoryDescription(jsonObject.getString("inventoryCategoryDescription").trim());
+                            nwspldt.setItemCategoryFA(jsonObject.getString("itemCategoryFA").trim());
+                            nwspldt.setFACategoryDescription(jsonObject.getString("FACategoryDescription").trim());
+                            nwspldt.setItemCategoryPurchasing(jsonObject.getString("itemCategoryPurchasing").trim());
+                            nwspldt.setPurchasingCategoryDescription(jsonObject.getString("purchasingCategoryDescription").trim());
+                            nwspldt.setVendorName(jsonObject.getString("vendorName").trim());
+                            nwspldt.setVendorNumber(jsonObject.getString("vendorNumber").trim());
+                            nwspldt.setCreatedBy(jsonObject.getInt("createdById"));
+                            nwspldt.setCreatedByName(jsonObject.getString("createdByName").trim());
+                            String dateApproved = jsonObject.getString("approvedDate");
+                            String dateCreated = jsonObject.getString("createdDate");
+                            Double unitPrice = jsonObject.optDouble("unitPriceInPoCurrency", 0.0);
+                            Double poQtyNew = jsonObject.optDouble("poQtyNew", 0.0);
+                            Double poOrderQuantity = jsonObject.optDouble("poOrderQuantity", 0.0);
+                            if (poQtyNew > 0) {
+                                Double quantityDiff = poOrderQuantity - poQtyNew;
+                                nwspldt.setDescopedLinePriceInPoCurrency(quantityDiff * unitPrice);
+                                nwspldt.setNewLinePriceInPoCurrency(poQtyNew * unitPrice);
+                            }
+                            try {
+                                java.util.Date parsedDate = dateFormat.parse(dateApproved);
+                                java.sql.Date sqlDate = new java.sql.Date(parsedDate.getTime());
+                                java.util.Date newDate = dateFormat.parse(dateCreated);
+                                java.sql.Date sqlcreatedDate = new java.sql.Date(newDate.getTime());
+                                nwspldt.setApprovedDate(sqlDate);
+                                nwspldt.setCreatedDate(sqlcreatedDate);
+                            } catch (ParseException ex) {
+                                loggger.info("Exception |  " + ex.toString());
+                                java.util.logging.Logger.getLogger(APIController.class.getName()).log(Level.SEVERE, null, ex);
+                            }
+
+                            try {
+                                PurchaseOrderRepo.save(nwspldt);
+                                responseinfo = "Record Created Success";
+
+                            } catch (JSONException excc) {
+
+                                loggger.info("Exception |  " + excc.toString());
+
+                                responseinfo = excc.toString();
+                            }
                         }
-
-                        try {
-                            PurchaseOrderRepo.save(nwspldt);
-                            responseinfo = "Record Created Success";
-//                            tbPurchaseOrder topRecord = PurchaseOrderRepo.findTopByPoNumber(jsonObject.getString("poNumber"));
-//                            String storedrecordId = topRecord != null ? String.valueOf(topRecord.getRecordNo()) : "";
-
-//                        tb_Approval_Log newApprovalLog = new tb_Approval_Log();
-//                        java.util.Date parsedDate = dateFormat.parse(now.toString());
-//                        java.sql.Date newDate = new java.sql.Date(parsedDate.getTime());
-//                        newApprovalLog.setRecordDatetime(newDate);
-//                        newApprovalLog.setApprovalRecordId(Integer.parseInt(storedrecordId));
-//                        newApprovalLog.setRecordType("PO");
-//                        newApprovalLog.setPONumber(jsonObject.getString("poNumber").trim());
-//                        newApprovalLog.setStatus("Pending");
-//                        newApprovalLog.setRegion("");
-//                        newApprovalLog.setCreatedBy(jsonObject.getInt("createdById"));
-//                        newApprovalLog.setApprover(jsonObject.getString("businessOwner").trim());
-//                        approvalLogRepo.save(newApprovalLog);
-                        } catch (JSONException excc) {
-
-                            System.out.println(excc.getMessage());
-                            helper.logToFile(genHeader("N/A", "ErrorAddingPO_HD", "API") + "ErrorAddingPO_HD PO_HD RecordNo "
-                                    + recordNo, "INFO");
-                            responseinfo = excc.toString();
-                        }
+                        // }
                     } else {
-                        validationErrors.add(jsonObject.getString("poNumber") + " " + jsonObject.getString("lineNumber"));
+                        validationErrors.add(jsonObject.getString("poNumber") + " " + jsonObject.getInt("lineNumber"));
                     }
 
                 }
 
             }
-            if (!responseinfo.contains("Success")) {
+            loggger.info("PO CREATE RESPONSE |  " + responseinfo);
+            loggger.info("VALIDATION RESPONSE |  " + validationErrors);
+            if (!validationErrors.isEmpty()) {
+                batchfilename = getbatchfilename("FailedUpload");
+                helper.logBatchFile(responseinfo, true, batchfilename);
+                return response("Error", "PO numbers and Line Items: " + String.join(", ", validationErrors) + " are already uploaded. Duplicates not allowed");
+            } else if (!responseinfo.contains("Success")) {
                 batchfilename = getbatchfilename("FailedUpload");
                 helper.logBatchFile(responseinfo, true, batchfilename);
                 return response("Error", responseinfo);
-            } else if (!validationErrors.isEmpty()) {
-                batchfilename = getbatchfilename("FailedUpload");
-                helper.logBatchFile(responseinfo, true, batchfilename);
-                return response("Error", "Already Existing PO numbers and Line Items: " + String.join(", ", validationErrors));
             } else {
                 return response("Success", "Complete");
             }
-        } catch (NumberFormatException | JSONException exc) {
-            net.minidev.json.JSONObject response = new net.minidev.json.JSONObject();
+            //            else if (!blanketerrors.isEmpty()) {
+            //                batchfilename = getbatchfilename("FailedUpload");
+            //                helper.logBatchFile(responseinfo, true, batchfilename);
+            //                return response("Error", "PO number(s) " + String.join(", ", blanketerrors) + " have 0 release number hence couldn't be uploaded");
+            //            }
 
+        } catch (NumberFormatException | JSONException exc) {
+            loggger.info("Exception |  " + exc.toString());
             return response("Error", exc.getMessage());
         }
     }
@@ -382,50 +693,42 @@ public class APIController {
         String batchfilename = "";
         JSONArray jsonArrayresponse = new JSONArray();
         long recordNo = 0;
+        long recordNovalidation = 0;
         List<String> missingPoNumbers = new ArrayList<>();
-        String poId = "";
-        String poDate = "";
-        String supplierId = "";
-        String termsAndConditions = "";
-        String deliveryLocationId = "";
-        String createdBy = "";
-        String status = "";
+        loggger.info("UPL CREATE REQUEST |  " + req);
+
         try {
             SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd"); // Adjust the pattern as per your date format
-            DateTimeFormatter myFormatObj = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
             LocalDateTime now = LocalDateTime.now();
-            String requesttime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(Calendar.getInstance().getTime());
             JSONArray jsonArray = new JSONArray(req);
             String responseinfo = "Failed to save or data";
             //VALIDATE FIRST HERE 
-            Set<String> validRegions = new HashSet<>(Arrays.asList("East", "West", "North", "South", "Central"));
             JSONArray jsonArrayValidate = new JSONArray(req);
-            List<String> validationErrors = new ArrayList<>();
+            List<String> validationErrorsUPLCreation = new ArrayList<>();
 
-            // Validation loop
             for (int i = 0; i < jsonArrayValidate.length(); i++) {
                 JSONObject jsonObject = jsonArrayValidate.getJSONObject(i);
-                String region = jsonObject.getString("regionalApprover").trim();
-                String dptApprover1 = jsonObject.optString("dptApprover1", "").trim();
-                List<tb_PurchaseOrderUPL> validateUPLCreation = purchaseOrderUPLRepo.findByPoNumberAndPoLineNumberAndUplLine(jsonObject.getString("poNumber"), jsonObject.getString("poLineNumber"), jsonObject.getString("uplLine"));
 
-                if (!validateUPLCreation.isEmpty()) {
-                    validationErrors.add("UPL Having UPL line " + jsonObject.getString("uplLine") + " in record  " + (i + 1) + ": already exists: PO Nunber " + jsonObject.getString("poNumber"));
+                recordNovalidation = Integer.parseInt(jsonObject.getString("recordNo"));
+
+                if (recordNovalidation == 0) {
+                    List<tb_PurchaseOrderUPL> validateUPLCreation = purchaseOrderUPLRepo.findByPoNumberAndPoLineNumberAndUplLine(jsonObject.getString("poNumber"), jsonObject.getString("poLineNumber"), jsonObject.getString("uplLine"));
+                    if (!validateUPLCreation.isEmpty()) {
+                        //validationErrors.add("The UPL with line " + jsonObject.getString("uplLine") + " in record " + (i + 1) + " with PO Number " + jsonObject.getString("poNumber") + " already exists. Please check and try again.");
+                        validationErrorsUPLCreation.add(jsonObject.getString("uplLine") + " ");
+                        //validationErrors.add("UPL Having UPL line " + jsonObject.getString("uplLine") + " in record  " + (i + 1) + ": already exists: PO Nunber " + jsonObject.getString("poNumber"));
+                    }
                 }
-                // Validate region
-                if (!validRegions.contains(region)) {
-                    validationErrors.add("Invalid region in record " + (i + 1) + ": " + region);
-                }
-                // Validate dptApprover1
-                if (dptApprover1.isEmpty()) {
-                    validationErrors.add("Missing Department Approver 1 in record " + (i + 1));
-                }
+                //String region = jsonObject.getString("regionalApprover").trim();
+                //String dptApprover1 = jsonObject.optString("dptApprover1", "").trim();
             }
 
             // Check if there are any validation errors
-            if (!validationErrors.isEmpty()) {
-                return response("Error", "Validation failed: " + String.join("; ", validationErrors));
+            if (!validationErrorsUPLCreation.isEmpty()) {
+                return response("Error", "The records having with lines: " + String.join("; ", validationErrorsUPLCreation) + " already exists. Please check and try again. ");
             }
+
+            loggger.info("UPL VALIDATE ERROR |  " + validationErrorsUPLCreation.toString());
 
             for (int i = 0; i < jsonArray.length(); i++) {
                 JSONObject jsonObject = jsonArray.getJSONObject(i);
@@ -458,17 +761,24 @@ public class APIController {
                         spldt.setActiveOrPassive(jsonObject.getString("activeOrPassive").trim());
                         spldt.setUom(jsonObject.getString("uom").trim());
                         spldt.setCurrency(jsonObject.getString("currency").trim());
-                        spldt.setPoLineQuantity(jsonObject.getInt("poLineQuantity"));
+                        spldt.setPoLineQuantity(jsonObject.getDouble("poLineQuantity"));
                         spldt.setPoLineUnitPrice(jsonObject.getDouble("poLineUnitPrice"));
-                        spldt.setUplLineQuantity(jsonObject.getInt("uplLineQuantity"));
+                        spldt.setUplLineQuantity(jsonObject.getDouble("uplLineQuantity"));
                         spldt.setUplLineUnitPrice(jsonObject.getDouble("uplLineUnitPrice"));
                         spldt.setSubstituteItemCode(jsonObject.getString("substituteItemCode"));
                         spldt.setRemarks(jsonObject.getString("remarks").trim());
-                        spldt.setDptApprover1(jsonObject.getString("dptApprover1").trim());
-                        spldt.setDptApprover2(jsonObject.getString("dptApprover2").trim());
-                        spldt.setDptApprover3(jsonObject.getString("dptApprover3").trim());
-                        spldt.setDptApprover4(jsonObject.getString("dptApprover4").trim());
-                        spldt.setRegionalApprover(jsonObject.getString("regionalApprover").trim());
+                        spldt.setUplModifiedBy(jsonObject.getString("modifiedBy").trim());
+                        // if (jsonObject.has("uplModifiedDate") && jsonObject.getString("uplModifiedDate").length() > 1) {
+                        java.util.Date upldate = dateFormat.parse(now.toString());
+                        java.sql.Date sqlDate = new java.sql.Date(upldate.getTime());
+                        spldt.setUplModifiedDate(sqlDate);
+                        // }
+                        spldt.setRemarks(jsonObject.getString("remarks").trim());
+//                        spldt.setDptApprover1(jsonObject.getString("dptApprover1").trim());
+//                        spldt.setDptApprover2(jsonObject.getString("dptApprover2").trim());
+//                        spldt.setDptApprover3(jsonObject.getString("dptApprover3").trim());
+//                        spldt.setDptApprover4(jsonObject.getString("dptApprover4").trim());
+//                        spldt.setRegionalApprover(jsonObject.getString("regionalApprover").trim());
                         spldt.setCreatedBy(jsonObject.getInt("createdById"));
                         spldt.setCreatedByName(jsonObject.getString("createdByName").trim());
                         try {
@@ -476,9 +786,8 @@ public class APIController {
                             responseinfo = "Record Updated Success";
                         } catch (Exception excc) {
 
-                            System.out.println(excc.getMessage());
-                            helper.logToFile(genHeader("N/A", "ErrorAddingPO_HD", "API") + "ErrorAddingPO_HD PO_HD RecordNo "
-                                    + recordNo, "INFO");
+                            loggger.info("Exception |  " + excc.toString());
+
                             responseinfo = excc.toString();
                         }
                     } else {
@@ -507,27 +816,24 @@ public class APIController {
                         nwspldt.setActiveOrPassive(jsonObject.getString("activeOrPassive").trim());
                         nwspldt.setUom(jsonObject.getString("uom").trim());
                         nwspldt.setCurrency(jsonObject.getString("currency").trim());
-                        nwspldt.setPoLineQuantity(jsonObject.getInt("poLineQuantity"));
+                        nwspldt.setPoLineQuantity(jsonObject.getDouble("poLineQuantity"));
                         nwspldt.setPoLineUnitPrice(jsonObject.getDouble("poLineUnitPrice"));
-                        nwspldt.setUplLineQuantity(jsonObject.getInt("uplLineQuantity"));
+                        nwspldt.setUplLineQuantity(jsonObject.getDouble("uplLineQuantity"));
                         nwspldt.setUplLineUnitPrice(jsonObject.getDouble("uplLineUnitPrice"));
                         nwspldt.setSubstituteItemCode(jsonObject.getString("substituteItemCode").trim());
                         nwspldt.setRemarks(jsonObject.getString("remarks").trim());
-                        nwspldt.setDptApprover1(jsonObject.getString("dptApprover1").trim());
-                        nwspldt.setDptApprover2(jsonObject.getString("dptApprover2").trim());
-                        nwspldt.setDptApprover3(jsonObject.getString("dptApprover3").trim());
-                        nwspldt.setDptApprover4(jsonObject.getString("dptApprover4").trim());
-                        nwspldt.setRegionalApprover(jsonObject.getString("regionalApprover").trim());
+//                        nwspldt.setDptApprover1(jsonObject.getString("dptApprover1").trim());
+//                        nwspldt.setDptApprover2(jsonObject.getString("dptApprover2").trim());
+//                        nwspldt.setDptApprover3(jsonObject.getString("dptApprover3").trim());
+//                        nwspldt.setDptApprover4(jsonObject.getString("dptApprover4").trim());
+//                        nwspldt.setRegionalApprover(jsonObject.getString("regionalApprover").trim());
                         nwspldt.setCreatedBy(jsonObject.getInt("createdById"));
                         nwspldt.setCreatedByName(jsonObject.getString("createdByName").trim());
                         try {
                             purchaseOrderUPLRepo.save(nwspldt);
                             responseinfo = "Record Created Success";
                         } catch (JSONException excc) {
-
-                            System.out.println(excc.getMessage());
-                            helper.logToFile(genHeader("N/A", "ErrorAddingPO_HD", "API") + "ErrorAddingPO_HD PO_HD RecordNo "
-                                    + recordNo, "INFO");
+                            loggger.info("Exception |  " + excc.toString());
                             responseinfo = excc.toString();
                         }
 
@@ -538,6 +844,7 @@ public class APIController {
                     System.out.println("PO NUMBER DOEST EXISTS " + jsonObject.getString("poNumber"));
                 }
             }
+            loggger.info("UPL CREATE RESPONSE |  " + responseinfo);
             if (!missingPoNumbers.isEmpty()) {
                 batchfilename = getbatchfilename("FailedUpload");
                 helper.logBatchFile(responseinfo, true, batchfilename);
@@ -549,6 +856,7 @@ public class APIController {
             } else {
                 return response("Success", "Complete");
             }
+
         } catch (NumberFormatException | JSONException exc) {
             return response("Error", exc.getMessage());
         }
@@ -558,9 +866,7 @@ public class APIController {
     @PostMapping(value = "/postpohdln")
     @CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
     public Map<String, String> postpohd(@RequestBody String req) throws ParseException, ParseException, ParseException {
-        String batchfilename = "";//getbatchfilename("POHDLN_BATCHUPLOAD");
-//        helper.logBatchFile(req, true, batchfilename);
-//        helper.logToFile(genHeader("N/A", "POHDLN_BATCHUPLOAD", "POHDLN_BATCHUPLOAD") + "POHDLN_BATCHUPLOAD file name /home/app/logs/ALM/BatchFiles/" + batchfilename, "INFO");
+        String batchfilename = "";
         JSONArray jsonArrayresponse = new JSONArray();
         long recordNo = 0;
         String poId = "";
@@ -653,51 +959,17 @@ public class APIController {
 
     }
 
-    private String getformatted(String datetoconvert, String inputformat, String outputformat) {
-        String formdate = null;
-        try {
-            SimpleDateFormat inputDateFormat = new SimpleDateFormat(inputformat);
-            // Parse the input date string into a Date object.
-            Date inputDate = inputDateFormat.parse(datetoconvert);
-            // Create a SimpleDateFormat object with the output date format.
-            SimpleDateFormat outputDateFormat = new SimpleDateFormat(outputformat);
-            formdate = outputDateFormat.format(inputDate);;
-        } catch (Exception exd) {
-
-        }
-        return formdate;
-    }
-
-    private String dateformatter(String datevalue) {
-        try {
-            SimpleDateFormat oldDateFormat = new SimpleDateFormat("MM/DD/YYYY");
-            // Parse the date string into a Date object.
-            Date date = oldDateFormat.parse("03/09/2013");
-            // Create a new SimpleDateFormat object with the new date format as the constructor parameter.
-            SimpleDateFormat newDateFormat = new SimpleDateFormat("YYYY-MM-DD");
-            // Format the Date object to a string using the new date format.
-            String convertedDateString = newDateFormat.format(date);
-            return convertedDateString;
-        } catch (ParseException exc) {
-            return "Failed";
-        }
-    }
-
     private String getbatchfilename(String filetype) {
         String batchfilename = filetype + "_" + System.currentTimeMillis() + ".json";
         return batchfilename;
     }
 
-//    @PostMapping(value = "/postdcc")
-//    @CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
-//    public Map<String, String> postdcc(@RequestBody String req) {
     @PostMapping(value = "/postdcc")
     @CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
     public Map<String, String> postdcc(@RequestPart(value = "file", required = false) List<MultipartFile> files, @RequestPart("data") String req) {
-        loggger.info("| Request details " + req);
+        loggger.info("| CREATE ACCEPTANCE REQUEST " + req);
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd"); // Adjust the pattern as per your date format
 
-        // Save the file to a directory
         JSONArray jsonArray = new JSONArray(req);
         if (jsonArray.length() == 0) {
             return response("Error", "No data provided");
@@ -705,9 +977,7 @@ public class APIController {
         JSONObject firstRecord = jsonArray.getJSONObject(0);
         String poNumber = firstRecord.getString("poNumber");
 
-        // Directory to save the file
         String uploadDir = "/home/app/logs/ALM/POUPL/";
-        // Directory to save the files
         if (files != null) {
             for (MultipartFile file : files) {
                 String originalFileName = file.getOriginalFilename();
@@ -743,6 +1013,8 @@ public class APIController {
         helper.logToFile(genHeader("N/A", "DCC_BATCHUPLOAD", "DCC_BATCHUPLOAD") + "DCC_BatchUpload file name /home/app/logs/ALM/BatchFiles/" + batchfilename, "INFO");
         JSONArray jsonArrayresponse = new JSONArray();
         long recordNo = 0;
+        long recordNoValidate = 0;
+        List<DCCLineItem> validateDCCLineList;
 
         String vendorName = "";
         String vendorEmail = "";
@@ -761,46 +1033,152 @@ public class APIController {
             java.util.Date parsedDate = dateFormat.parse(now.toString());
             java.sql.Date newDate = new java.sql.Date(parsedDate.getTime());
             String requesttime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(Calendar.getInstance().getTime());
+            List<String> alreadyCreatedDCC = new ArrayList<>();
+            List<String> missingSerialsforUPLBased = new ArrayList<>();
+            List<String> missingApprovalLevel = new ArrayList<>();
+            List<String> missingSerialsforNONUPLBased = new ArrayList<>();
+            List<String> oldDateService = new ArrayList<>();
+
+            String actualItemCode = "";
+            String itemCode = "";
+            String serialNumber = "";
+            String upllineitem = "";
+            String polineitem = "";
+            String dateInServiceString = "";
+            String scopeofWork = "";
+            //UPL BASED , CHECK FROM UPL TABLE IF ITS SERIALIZED OR NOT, IF IT IS CHECK IF SERIAL NUMBER IS PASSED , IF NOT DECLINE 
+            //LETS VALIDATE DIPLICATE HERE  loop through the dcc line items check if its been created then check the status
+            for (int i = 0; i < jsonArray.length(); i++) {
+
+                JSONObject validatejsonObject = jsonArray.getJSONObject(i);
+                recordNoValidate = Integer.parseInt(validatejsonObject.getString("recordNo"));
+                if (recordNoValidate == 0) {
+
+                    String acceptancestatus = validatejsonObject.getString("status");
+                    String poNum = validatejsonObject.getString("poNumber");
+                    JSONArray dcclineRequest = validatejsonObject.getJSONArray("lineItems");
+
+                    for (int j = 0; j < dcclineRequest.length(); j++) {
+                        JSONObject dcclinejsonObject = dcclineRequest.getJSONObject(j);
+                        //check if actual item code is empty 
+                        if (dcclinejsonObject.has("actualItemCode")) {
+                            actualItemCode = dcclinejsonObject.getString("actualItemCode");
+                        }
+                        itemCode = dcclinejsonObject.getString("itemCode");
+                        serialNumber = dcclinejsonObject.getString("serialNumber");
+                        upllineitem = dcclinejsonObject.getString("uplLineNumber");
+                        polineitem = dcclinejsonObject.getString("poLineNumber");
+                        dateInServiceString = dcclinejsonObject.getString("dateInService");
+
+                        scopeofWork = dcclinejsonObject.getString("scopeOfWork");
+                        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
+                        LocalDateTime dateInService = LocalDateTime.parse(dateInServiceString, formatter);
+                        LocalDateTime sixMonthsAgo = LocalDateTime.now().minus(6, ChronoUnit.MONTHS);
+
+                        if (dateInService.isBefore(sixMonthsAgo)) {
+                            oldDateService.add(upllineitem);
+                        }
+                        if (upllineitem.length() > 1) {
+
+                            tbScope scopeRecord = scopeRepo.findByScope(scopeofWork.trim());
+                            String scopeId = scopeRecord != null ? String.valueOf(scopeRecord.getRecordNo()) : "";
+                            tb_PurchaseOrderUPL topRecord = purchaseOrderUPLRepo.findTopByPoNumberAndPoLineNumberAndUplLine(poNumber, polineitem, upllineitem);
+                            String itemSerialized = topRecord != null ? String.valueOf(topRecord.getUplItemSerialized()) : "";
+                            //String itemcategorycode = topRecord != null ? String.valueOf(topRecord.getZainItemCategoryCode()) : "";
+                            // List<tbCategoryApprovalLevels> validateItemCode = categoryApprovalLevelRepo.findByItemCategoryCode(itemcategorycode);
+                            List<tbScopeApprovalLevels> validateScope = scopeApprovalLevelsRepo.findByScope(Integer.parseInt(scopeId));
+
+                            if (validateScope.isEmpty()) {
+                                missingApprovalLevel.add(scopeofWork);
+                            }
+
+                            if (itemSerialized.equalsIgnoreCase("Yes")) {
+                                if (serialNumber.length() < 1) {
+                                    //if serialized, a serial number must be passed 
+                                    missingSerialsforUPLBased.add(upllineitem);
+                                }
+                            } else if (itemSerialized.equalsIgnoreCase("No")) {
+                                tbPurchaseOrder podetails = PurchaseOrderRepo.findTopByPoNumberAndLineNumber(poNumber, polineitem);
+                                String serialcontrol = topRecord != null ? String.valueOf(podetails.getSerialControl()) : "";
+                                if (!serialcontrol.equalsIgnoreCase("NO CONTROL")) {
+                                    if (serialNumber.length() < 1) {
+                                        missingSerialsforNONUPLBased.add(polineitem);
+                                    }
+                                }
+                            }
+                        } else {
+                        }
+                        //CHECK IF UPL BASED 
+                        //VALIDATE
+//                    if (actualItemCode.length() > 1) {
+//                        validateDCCLineList = dcclnrepo.findBySerialNumberAndActualItemCode(serialNumber, actualItemCode);
+//                    } else {
+                        if (serialNumber.length() > 1 && itemCode.length() > 1) {
+                            validateDCCLineList = dcclnrepo.findBySerialNumberAndItemCode(serialNumber, itemCode);
+                            // }
+//here check the validation again 
+                            if (!validateDCCLineList.isEmpty()) {
+                                DCCLineItem topRecordNo = dcclnrepo.findTopBySerialNumberAndItemCode(serialNumber, itemCode);
+                                String dccid = topRecordNo != null ? String.valueOf(topRecordNo.getDccId()) : "";
+                                if (dccid.length() > 1) {
+                                    DCC dccRecord = dccrepo.findByRecordNo(Integer.parseInt(dccid));
+                                    String dccStatus = dccRecord != null ? String.valueOf(dccRecord.getStatus()) : "";
+
+                                    if (dccStatus.equalsIgnoreCase("inprocess") || dccStatus.equalsIgnoreCase("approved")) {
+
+                                        alreadyCreatedDCC.add(serialNumber);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if (!missingSerialsforNONUPLBased.isEmpty()) {
+                return response("Error", "PO line Item(s) " + String.join(", ", missingSerialsforNONUPLBased) + " are serialized and hence a serial number must be provided to raise an acceptance request");
+            }
+            if (!missingSerialsforUPLBased.isEmpty()) {
+                return response("Error", "UPL line Item(s) " + String.join(", ", missingSerialsforUPLBased) + " are serialized and hence a serial number must be provided to raise an acceptance request");
+            }
+            if (!alreadyCreatedDCC.isEmpty()) {
+                return response("Error", "Acceptance request for serial numbers " + String.join(", ", alreadyCreatedDCC) + " has already been raised. Duplicates records not allowed ");
+            }
+            if (!missingApprovalLevel.isEmpty()) {
+                return response("Error", "Missing Approval Level Configurations for Scope(s):  " + String.join(", ", missingApprovalLevel) + " Please contact the OPCO.");
+            }
+            if (!oldDateService.isEmpty()) {
+                return response("Error", "The dateInService for Upl Line Items(s) " + oldDateService + " is more than 6 months old. Validation failed.");
+            }
+
+            String createdByName = "";
+
             for (int i = 0; i < jsonArray.length(); i++) {
                 JSONObject jsonObject = jsonArray.getJSONObject(i);
                 recordNo = Integer.parseInt(jsonObject.getString("recordNo"));
-                //  dccId = jsonObject.getString("dccId");
+
                 poNumber = jsonObject.getString("poNumber");
                 vendorName = jsonObject.getString("vendorName");
-                //    boqId = jsonObject.getString("boqId");
-                // vendorEmail = jsonObject.getString("vendorEmail");
-                // projectName = jsonObject.getString("projectName");
-                //     acceptanceType = jsonObject.getString("acceptanceType");
                 status = jsonObject.getString("status");
                 createdBy = jsonObject.getInt("createdById");
-                // createdBy
-                //currency = jsonObject.getString("currency");
+                createdByName = jsonObject.getString("createdByName");
                 JSONArray dcc_line_data = jsonObject.getJSONArray("lineItems");
-                String result = addEditDCC(recordNo, poNumber, vendorName,
-                        status, jsonObject);
+                String result = addEditDCC(recordNo, jsonObject);
                 DCC topRecord = dccrepo.findTopByPoNumber(poNumber);
                 String recordId = topRecord != null ? String.valueOf(topRecord.getRecordNo()) : "";
-                //insert into the main table 
-                if (!status.equalsIgnoreCase("incomplete")) {
-                    tb_Arc_ApprovalRecords approval = new tb_Arc_ApprovalRecords();
-                    approval.setRecordDatetime(newDate);
-                    approval.setRecordId(Integer.parseInt(recordId));
-                    approval.setRecordTable("tb_DCC");
-                    approval.setApprovalStatus("pending");
-                    approval.setCreatedBy(createdBy);
-                    arcApprovalRecordsRepo.save(approval);
-                }
+                //insert into the main table
+                //remove this for now . Approval Workflow has changed
+//                if (!status.equalsIgnoreCase("incomplete")) {
+//                    tb_Arc_ApprovalRecords approval = new tb_Arc_ApprovalRecords();
+//                    approval.setRecordDatetime(newDate);
+//                    approval.setRecordId(Integer.parseInt(recordId));
+//                    approval.setRecordTable("tb_DCC");
+//                    approval.setApprovalStatus("pending");
+//                    approval.setCreatedBy(createdBy);
+//                    arcApprovalRecordsRepo.save(approval);
+//                }
                 if (result.contains("Success")) {
-                    //  if (dcc_line_data.length() > 0) {
-                    postdccln(poNumber, recordId, status, createdBy, dcc_line_data.toString());
+                    postdccln(poNumber, recordId, status, createdBy, createdByName, vendorName, dcc_line_data.toString());
 
-                    //lets change this for now 
-//                    net.minidev.json.JSONObject params = new net.minidev.json.JSONObject();
-//                    params.put("approvalTypeId", "1");
-//                    params.put("recordId", recordId);
-//                    params.put("createdBy", createdBy);
-//                    requestMap = utils.httpPOST(params.toString(), "http://" + ipaddress + ":8080/alm-zain-ksa/workflow/create", requestMap);
-                    //requestMap = utils.httpPOST(params.toString(), "http://194.164.123.221:8080/alm-zain-ksa/workflow/create", requestMap);
                 } else {
                     net.minidev.json.JSONObject responsedata = new net.minidev.json.JSONObject();
                     responsedata.put("dccId", dccId);
@@ -818,6 +1196,8 @@ public class APIController {
             }
         } catch (NumberFormatException | ParseException | JSONException excc) {
 
+            loggger.info("POST DCC EXCEPTION" + excc);
+
             System.out.println(excc.toString());
         }
         return response("Error", jsonArrayresponse.toString());
@@ -826,10 +1206,8 @@ public class APIController {
     public String getIPAddress() {
         String ipAddress = "";
         try {
-            // Get the local host address
             InetAddress inetAddress = InetAddress.getLocalHost();
 
-            // Get the IP address as a string
             ipAddress = inetAddress.getHostAddress();
             System.out.println("ipAddress " + ipAddress);
 
@@ -839,11 +1217,10 @@ public class APIController {
         return ipAddress;
     }
 
-    private String addEditDCC(long recordno, String poNumber, String vendorName, String status, JSONObject jsonObject) {
+    private String addEditDCC(long recordno, JSONObject jsonObject) {
         String dataadded = "Failed to save";
 
         try {
-
             DCC checkdcc = dccrepo.findByRecordNo(recordno);
             if (checkdcc != null) {
                 checkdcc.setPoNumber(jsonObject.getString("poNumber"));
@@ -852,11 +1229,12 @@ public class APIController {
                 checkdcc.setStatus(jsonObject.getString("status"));
                 checkdcc.setVendorName(jsonObject.getString("vendorName"));
                 checkdcc.setVendorNumber(jsonObject.getString("vendorNumber"));
-
                 try {
                     dccrepo.save(checkdcc);
                     dataadded = "Data updated Success";
                 } catch (Exception exc) {
+                    loggger.info("POST DCC EXCEPTION" + exc);
+
                     dataadded = exc.getCause().toString();
                 }
             } else {
@@ -867,6 +1245,17 @@ public class APIController {
                 nwcheckdcc.setStatus(jsonObject.getString("status"));
                 nwcheckdcc.setVendorName(jsonObject.getString("vendorName"));
                 nwcheckdcc.setVendorNumber(jsonObject.getString("vendorNumber"));
+                SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd"); // Adjust the pattern as per your date format
+                LocalDateTime now = LocalDateTime.now();
+                java.util.Date parsedDate;
+                try {
+                    parsedDate = dateFormat.parse(now.toString());
+                    java.sql.Date newDate = new java.sql.Date(parsedDate.getTime());
+                    nwcheckdcc.setCreatedDate(newDate);
+                } catch (ParseException ex) {
+                    Logger.getLogger(APIController.class.getName()).log(Level.SEVERE, null, ex);
+                }
+
                 try {
                     dccrepo.save(nwcheckdcc);
                     dataadded = "Data updated Success";
@@ -875,12 +1264,12 @@ public class APIController {
                 }
             }
         } catch (JSONException excc) {
+            loggger.info("POST DCC EXCEPTION" + excc);
             dataadded = "Error " + excc.getCause().toString();
         }
         return dataadded;
     }
 
-    //Supplier Data Listener
     @PostMapping(value = "/postsupplier")
     @CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
     public Map<String, String> postsupplier(@RequestBody String req) {
@@ -944,7 +1333,7 @@ public class APIController {
             } else {
                 return response("Success", "Complete");
             }
-        } catch (Exception exc) {
+        } catch (NumberFormatException | JSONException exc) {
             net.minidev.json.JSONObject response = new net.minidev.json.JSONObject();
             response.put("supplierId", supplierId);
             response.put("supplierName", supplierName);
@@ -953,11 +1342,15 @@ public class APIController {
     }
 
     //Add Edit DCC
-    private String postdccln(String poNumber, String recordId, String status, Integer createdBy, String req) {
+    private String postdccln(String poNumber, String recordId, String status, Integer createdBy, String createdByName, String vendorName, String req) {
         //   String batchfilename = getbatchfilename("DCCLN_BATCHUPLOAD");
         // helper.logBatchFile(req, true, batchfilename);
         // helper.logToFile(genHeader("N/A", "DCCLN_BATCHUPLOAD", "DCCLN_BATCHUPLOAD") + "DCCLN_BATCHUPLOAD file name /home/app/logs/ALM/BatchFiles/" + batchfilename, "INFO");
         JSONArray jsonArrayresponse = new JSONArray();
+        List<String> ItemCategoryCodes = new ArrayList<>();
+
+        String itemcategorycode = "";
+        String poLineDecription = "";
         long recordNo = 0;
         String productName = "";
         String productSerialNo = "";
@@ -969,6 +1362,7 @@ public class APIController {
         BigDecimal unitPrice;
         String dccId = "";
         String itemCode = "";
+
         try {
             DateTimeFormatter myFormatObj = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
             LocalDateTime now = LocalDateTime.now();
@@ -977,8 +1371,16 @@ public class APIController {
             for (int i = 0; i < jsonArray.length(); i++) {
                 JSONObject jsonObject = jsonArray.getJSONObject(i);
                 recordNo = Integer.parseInt(jsonObject.getString("recordNo"));
+                poLineDecription = jsonObject.getString("poLineItemDescription");
+                locationName = jsonObject.getString("locationName");
+                scopeOfWork = jsonObject.getString("scopeOfWork");
+                // tb_PurchaseOrderUPL topRecord = purchaseOrderUPLRepo.findTopByPoNumberAndPoLineNumberAndUplLine(poNumber, jsonObject.getString("poLineNumber"), jsonObject.getString("uplLineNumber"));
+//                itemcategorycode = topRecord != null ? String.valueOf(topRecord.getZainItemCategoryCode()) : "";
+                if (scopeOfWork.length() > 1) {
+                    ItemCategoryCodes.add(scopeOfWork);
+                }
 
-                String jsresp = addDCCLineItem(poNumber, recordNo, recordId, status, createdBy, jsonObject);
+                String jsresp = addDCCLineItem(poNumber, recordNo, recordId, status, createdBy, createdByName, vendorName, jsonObject);
                 if (!jsresp.contains("Success")) {
                     net.minidev.json.JSONObject responsedata = new net.minidev.json.JSONObject();
                     responsedata.put("recordNo", recordNo);
@@ -987,9 +1389,47 @@ public class APIController {
                     jsonArrayresponse.put(responsedata.toJSONString());
                 }
             }
+
+            tb_Site topRecord = siteRepo.findBySiteId(locationName);
+            Integer regionrecordId = topRecord != null ? (topRecord.getRegionId()) : null;
+            tb_Region regionRecord = regionRepo.findByRecordNo(regionrecordId);
+
+            //INITIATE WORKFLOW
+            // Remove duplicates using LinkedHashSet to preserve insertion order
+            Set<String> uniqueItemCategoryCodes = new LinkedHashSet<>(ItemCategoryCodes);
+
+            // Initialize JSONArray to store JSON objects
+            net.minidev.json.JSONArray jsonArraynew = new net.minidev.json.JSONArray();
+
+            // Loop through the unique item category codes
+            for (String newitemCategoryCode : uniqueItemCategoryCodes) {
+                // Create a new JSONObject for each unique itemCategoryCode
+                net.minidev.json.JSONObject params = new net.minidev.json.JSONObject();
+                params.put("acceptanceRequestRecordNo", recordId);
+                params.put("tableName", "tb_DCC");
+                params.put("poNumber", poNumber);
+                params.put("poLineItemDescription", poLineDecription);
+                params.put("scope", newitemCategoryCode);
+                params.put("requestedBy", createdByName);
+                params.put("vendorName", vendorName);
+                params.put("createdBy", createdBy.toString());
+                params.put("regions", regionRecord.getRegionName());
+                jsonArraynew.add(params);
+            }
+
+            loggger.info("| POST WORKFLOW REQUEST " + jsonArraynew.toString());
+            String ipaddress = getIPAddress();
+            CompletableFuture.runAsync(() -> {
+                try {
+                    requestMap = utils.httpPOST(jsonArraynew.toString(), "http://" + ipaddress + ":8080/alm-zain-ksa/workflow/initialize-approval", requestMap);
+                    loggger.info("| POST WORKFLOW RESPONSE  " + requestMap);
+                } catch (Exception ex) {
+                    loggger.info("| POST WORKFLOW EXCEPTION " + ex.toString());
+                }
+            });
+
+            //requestMap = utils.httpPOST(jsonArraynew.toString(), "http://" + ipaddress + ":8080/alm-zain-ksa/workflow/initialize-approval", requestMap);
             if (jsonArrayresponse.length() > 0) {
-                //     batchfilename = getbatchfilename("FailedUpload");
-                // helper.logBatchFile(jsonArrayresponse.toString(), true, batchfilename);
                 return (jsonArrayresponse.toString());
             } else {
                 return ("Complete");
@@ -998,11 +1438,12 @@ public class APIController {
             net.minidev.json.JSONObject response = new net.minidev.json.JSONObject();
             response.put("productSerialNo", productSerialNo);
             response.put("dccId", dccId);
+            loggger.info("POST DCC EXCEPTION" + exc);
             return (jsonArrayresponse.toString());
         }
     }
 
-    public String addDCCLineItem(String poNumber, long recordno, String recordId, String status, Integer createdBy, JSONObject jsonObject) {
+    public String addDCCLineItem(String poNumber, long recordno, String recordId, String status, Integer createdBy, String createdByName, String vendorName, JSONObject jsonObject) {
 
         System.out.println("DCC LIne " + jsonObject.toString());
 
@@ -1019,8 +1460,10 @@ public class APIController {
             eddccLineItem.setUplLineNumber(jsonObject.getString("uplLineNumber"));
             eddccLineItem.setItemCode(jsonObject.getString("itemCode"));
             eddccLineItem.setSerialNumber(jsonObject.getString("serialNumber"));
-            Integer delivered = Integer.parseInt(jsonObject.getString("deliveredQty"));
-
+            Double delivered = Double.parseDouble(jsonObject.getString("deliveredQty"));
+            if (jsonObject.has("actualItemCode")) {
+                eddccLineItem.setActualItemCode(jsonObject.getString("actualItemCode"));
+            }
             eddccLineItem.setPoId(poNumber);
             eddccLineItem.setDeliveredQty(delivered);
             eddccLineItem.setLocationName(jsonObject.getString("locationName"));
@@ -1031,6 +1474,7 @@ public class APIController {
             if (jsonObject.has("uplItemDescription")) {
                 eddccLineItem.setUplItemDescription(jsonObject.getString("uplItemDescription"));
             }
+
             try {
                 java.util.Date parsedDate = dateFormat.parse(dateInServiceString);
                 java.sql.Date sqlDate = new java.sql.Date(parsedDate.getTime());
@@ -1042,6 +1486,8 @@ public class APIController {
             }
             eddccLineItem.setScopeOfWork(jsonObject.getString("scopeOfWork"));
             eddccLineItem.setRemarks(jsonObject.getString("remarks"));
+            eddccLineItem.setLinkId(jsonObject.getString("linkId"));
+            eddccLineItem.setTagNumber(jsonObject.getString("tagNumber"));
 
             try {
                 dcclnrepo.save(eddccLineItem);
@@ -1062,7 +1508,7 @@ public class APIController {
             dccLineItem.setSerialNumber(jsonObject.getString("serialNumber"));
             dccLineItem.setLocationName(jsonObject.getString("locationName"));
             String dateInServiceString = jsonObject.getString("dateInService");
-            Integer delivered = Integer.parseInt(jsonObject.getString("deliveredQty"));
+            Double delivered = Double.parseDouble(jsonObject.getString("deliveredQty"));
             dccLineItem.setPoId(poNumber);
             dccLineItem.setDeliveredQty(delivered);
             try {
@@ -1074,6 +1520,8 @@ public class APIController {
             }
             dccLineItem.setScopeOfWork(jsonObject.getString("scopeOfWork"));
             dccLineItem.setRemarks(jsonObject.getString("remarks"));
+            dccLineItem.setLinkId(jsonObject.getString("linkId"));
+            dccLineItem.setTagNumber(jsonObject.getString("tagNumber"));
 
             System.out.println("DCC LIne save  " + dccLineItem);
 
@@ -1087,101 +1535,10 @@ public class APIController {
 
                 java.util.Date parsedDate = dateFormat.parse(now.toString());
                 java.sql.Date newDate = new java.sql.Date(parsedDate.getTime());
-
-                //check UP BASED 
-                if (jsonObject.getString("uplLineNumber").length() > 0 && !status.equalsIgnoreCase("incomplete")) {
-                    tb_PurchaseOrderUPL topRecord = purchaseOrderUPLRepo.findTopByPoNumberAndUplLine(poNumber, jsonObject.getString("uplLineNumber"));
-                    String approver1 = topRecord != null ? String.valueOf(topRecord.getDptApprover1()) : "";
-                    String approver2 = topRecord != null ? String.valueOf(topRecord.getDptApprover2()) : "";
-                    String approver3 = topRecord != null ? String.valueOf(topRecord.getDptApprover3()) : "";
-                    String approver4 = topRecord != null ? String.valueOf(topRecord.getDptApprover4()) : "";
-                    String regionalApprover = topRecord != null ? String.valueOf(topRecord.getRegionalApprover()) : "";
-
-                    System.out.println("approver1 " + approver1);
-                    System.out.println("approver2 " + approver2);
-                    System.out.println("approver3 " + approver3);
-                    System.out.println("approver4 " + approver4);
-                    System.out.println("regionalApprover " + regionalApprover);
-                    if (approver1.length() > 1) {
-                        tb_Approval_Log newApprovalLog = new tb_Approval_Log();
-                        newApprovalLog.setRecordDatetime(newDate);
-                        newApprovalLog.setApprovalRecordId(Integer.parseInt(approvalRecordNo));
-                        newApprovalLog.setRecordType("ACCEPTANCE");
-                        newApprovalLog.setPONumber(poNumber);
-                        newApprovalLog.setStatus("Pending");
-                        newApprovalLog.setRegion("");
-                        newApprovalLog.setCreatedBy(createdBy);
-                        newApprovalLog.setApprover(approver1);
-                        approvalLogRepo.save(newApprovalLog);
-                    }
-                    if (approver2.length() > 1) {
-                        tb_Approval_Log newApprovalLog = new tb_Approval_Log();
-                        newApprovalLog.setRecordDatetime(newDate);
-                        newApprovalLog.setApprovalRecordId(Integer.parseInt(approvalRecordNo));
-                        newApprovalLog.setRecordType("ACCEPTANCE");
-                        newApprovalLog.setPONumber(poNumber);
-                        newApprovalLog.setStatus("Pending");
-                        newApprovalLog.setRegion("");
-                        newApprovalLog.setCreatedBy(createdBy);
-                        newApprovalLog.setApprover(approver2);
-                        approvalLogRepo.save(newApprovalLog);
-                    }
-                    if (approver3.length() > 1) {
-                        tb_Approval_Log newApprovalLog = new tb_Approval_Log();
-                        newApprovalLog.setRecordDatetime(newDate);
-                        newApprovalLog.setApprovalRecordId(Integer.parseInt(approvalRecordNo));
-                        newApprovalLog.setRecordType("ACCEPTANCE");
-                        newApprovalLog.setPONumber(poNumber);
-                        newApprovalLog.setStatus("Pending");
-                        newApprovalLog.setRegion("");
-                        newApprovalLog.setCreatedBy(createdBy);
-                        newApprovalLog.setApprover(approver3);
-                        approvalLogRepo.save(newApprovalLog);
-                    }
-                    if (approver4.length() > 1) {
-                        tb_Approval_Log newApprovalLog = new tb_Approval_Log();
-                        newApprovalLog.setRecordDatetime(newDate);
-                        newApprovalLog.setApprovalRecordId(Integer.parseInt(approvalRecordNo));
-                        newApprovalLog.setRecordType("ACCEPTANCE");
-                        newApprovalLog.setPONumber(poNumber);
-                        newApprovalLog.setStatus("Pending");
-                        newApprovalLog.setRegion("");
-                        newApprovalLog.setCreatedBy(createdBy);
-                        newApprovalLog.setApprover(approver4);
-                        approvalLogRepo.save(newApprovalLog);
-                    }
-                    if (regionalApprover.length() > 1) {
-                        tb_Approval_Log newApprovalLog = new tb_Approval_Log();
-                        newApprovalLog.setRecordDatetime(newDate);
-                        newApprovalLog.setApprovalRecordId(Integer.parseInt(approvalRecordNo));
-                        newApprovalLog.setRecordType("ACCEPTANCE");
-                        newApprovalLog.setPONumber(poNumber);
-                        newApprovalLog.setStatus("Pending");
-                        newApprovalLog.setRegion("");
-                        newApprovalLog.setCreatedBy(createdBy);
-                        newApprovalLog.setApprover(regionalApprover);
-                        approvalLogRepo.save(newApprovalLog);
-                    }
-                }  //NON UPL BASED 
-                if (jsonObject.getString("uplLineNumber").length() < 0 && !status.equalsIgnoreCase("incomplete")) {
-                    tbPurchaseOrder topRecord = PurchaseOrderRepo.findTopByPoNumberAndLineNumber(jsonObject.getString("poNumber"), jsonObject.getString("poLineNumber"));
-                    String businessOwner = topRecord != null ? String.valueOf(topRecord.getBusinessOwner()) : "";
-
-                    if (businessOwner.length() > 1) {
-                        tb_Approval_Log newApprovalLog = new tb_Approval_Log();
-                        newApprovalLog.setRecordDatetime(newDate);
-                        newApprovalLog.setApprovalRecordId(Integer.parseInt(approvalRecordNo));
-                        newApprovalLog.setRecordType("ACCEPTANCE");
-                        newApprovalLog.setPONumber(poNumber);
-                        newApprovalLog.setStatus("Pending");
-                        newApprovalLog.setRegion("");
-                        newApprovalLog.setCreatedBy(createdBy);
-                        newApprovalLog.setApprover(businessOwner);
-                        approvalLogRepo.save(newApprovalLog);
-                    }
-                }
+                //CHECK UP BASED 
 
             } catch (NumberFormatException | ParseException | JSONException exc) {
+                loggger.info("POST DCC EXCEPTION" + exc);
                 System.out.println(exc.getMessage());
                 result = exc.getCause().toString();
             }
@@ -1817,7 +2174,7 @@ public class APIController {
             String huaweiComments, String amuComments, String procurementComments, JSONObject jsonObject) {
         String resultsave = "Failed to save";
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd"); // Adjust the pattern as per your date format
-        LocalDateTime now = LocalDateTime.now();
+        // LocalDateTime now = LocalDateTime.now();
 
         upldata updt = uprepo.findByRecordNo(recordNo);
         if (updt != null) {
@@ -1904,7 +2261,7 @@ public class APIController {
                 //ADD APPROVAL RECORD 
                 upldata topRecord = uprepo.findTopByPoNumber(jsonObject.getString("poId"));
                 String newstoredrecordId = topRecord != null ? String.valueOf(topRecord.getRecordNo()) : "";
-
+                LocalDateTime now = LocalDateTime.now();
                 java.util.Date parsedDate = dateFormat.parse(now.toString());
                 java.sql.Date newDate = new java.sql.Date(parsedDate.getTime());
                 if (!jsonObject.getString("dptApprover1").equalsIgnoreCase("")) {

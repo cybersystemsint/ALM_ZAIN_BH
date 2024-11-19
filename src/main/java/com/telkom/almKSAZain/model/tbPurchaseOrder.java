@@ -30,12 +30,12 @@ public class tbPurchaseOrder {
     public String itemPartNumber;
     public boolean prSubAllow;
     public String countryOfOrigin;
-    public Integer poOrderQuantity;
-    public Integer poQtyNew;
-    public Integer quantityReceived;
-    public Integer quantityDueOld;
-    public Integer quantityDueNew;
-    public Integer quantityBilled;
+    public double poOrderQuantity;
+    public double poQtyNew;
+    public double quantityReceived;
+    public double quantityDueOld;
+    public double quantityDueNew;
+    public double quantityBilled;
     public String currencyCode;
     public double unitPriceInPoCurrency;
     public double unitPriceInSAR;
@@ -73,7 +73,19 @@ public class tbPurchaseOrder {
     public Date createdDate;
     public Integer createdBy;
     public String createdByName;
+    public Double descopedLinePriceInPoCurrency;
+    public Double newLinePriceInPoCurrency;
 
+    public Double getNewLinePriceInPoCurrency() {
+        return newLinePriceInPoCurrency;
+    }
+
+    public void setNewLinePriceInPoCurrency(Double newLinePriceInPoCurrency) {
+        this.newLinePriceInPoCurrency = newLinePriceInPoCurrency;
+    }
+
+    
+    
     public Integer getCreatedBy() {
         return createdBy;
     }
@@ -194,51 +206,51 @@ public class tbPurchaseOrder {
         this.countryOfOrigin = countryOfOrigin;
     }
 
-    public Integer getPoOrderQuantity() {
+    public double getPoOrderQuantity() {
         return poOrderQuantity;
     }
 
-    public void setPoOrderQuantity(Integer poOrderQuantity) {
+    public void setPoOrderQuantity(double poOrderQuantity) {
         this.poOrderQuantity = poOrderQuantity;
     }
 
-    public Integer getPoQtyNew() {
+    public double getPoQtyNew() {
         return poQtyNew;
     }
 
-    public void setPoQtyNew(Integer poQtyNew) {
+    public void setPoQtyNew(double poQtyNew) {
         this.poQtyNew = poQtyNew;
     }
 
-    public Integer getQuantityReceived() {
+    public double getQuantityReceived() {
         return quantityReceived;
     }
 
-    public void setQuantityReceived(Integer quantityReceived) {
+    public void setQuantityReceived(double quantityReceived) {
         this.quantityReceived = quantityReceived;
     }
 
-    public Integer getQuantityDueOld() {
+    public double getQuantityDueOld() {
         return quantityDueOld;
     }
 
-    public void setQuantityDueOld(Integer quantityDueOld) {
+    public void setQuantityDueOld(double quantityDueOld) {
         this.quantityDueOld = quantityDueOld;
     }
 
-    public Integer getQuantityDueNew() {
+    public double getQuantityDueNew() {
         return quantityDueNew;
     }
 
-    public void setQuantityDueNew(Integer quantityDueNew) {
+    public void setQuantityDueNew(double quantityDueNew) {
         this.quantityDueNew = quantityDueNew;
     }
 
-    public Integer getQuantityBilled() {
+    public double getQuantityBilled() {
         return quantityBilled;
     }
 
-    public void setQuantityBilled(Integer quantityBilled) {
+    public void setQuantityBilled(double quantityBilled) {
         this.quantityBilled = quantityBilled;
     }
 
@@ -521,5 +533,14 @@ public class tbPurchaseOrder {
     public void setCreatedDate(Date createdDate) {
         this.createdDate = createdDate;
     }
+
+    public double getDescopedLinePriceInPoCurrency() {
+        return descopedLinePriceInPoCurrency;
+    }
+
+    public void setDescopedLinePriceInPoCurrency(Double descopedLinePriceInPoCurrency) {
+        this.descopedLinePriceInPoCurrency = descopedLinePriceInPoCurrency;
+    }
+
 
 }
