@@ -9,10 +9,10 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com.telkom</groupId>
-    <artifactId>alm_zain_ksa</artifactId>
+    <artifactId>alm_zain_bh</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <packaging>war</packaging>
-    <name>alm_zain_ksa</name>
+    <name>alm_zain_bh</name>
     <description>ALM file reader</description>
     <properties>
         <java.version>1.8</java.version>
@@ -36,15 +36,15 @@
             <version>1.0.0</version>
         </dependency>
         <!--ORACLE -->
-        <dependency>
+<!--        <dependency>
             <groupId>com.oracle.database.jdbc</groupId>
             <artifactId>ojdbc8</artifactId>
             <version>19.8.0.0</version>
-        </dependency>
+        </dependency>-->
         <dependency>
             <groupId>mysql</groupId>
             <artifactId>mysql-connector-java</artifactId>
-            <!--            <version>8.0.32</version>-->
+<!--            <scope>runtime</scope>-->
         </dependency>
         <dependency>
             <groupId>commons-net</groupId>
