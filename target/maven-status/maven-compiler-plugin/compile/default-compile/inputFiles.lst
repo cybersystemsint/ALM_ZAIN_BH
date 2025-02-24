@@ -6,6 +6,7 @@ D:\Files\TELKOM\ALM\alm_zain_bh\src\main\java\com\telkom\almBHZain\model\tbSeria
 D:\Files\TELKOM\ALM\alm_zain_bh\src\main\java\com\telkom\almBHZain\model\tb_ChargeAccount.java
 D:\Files\TELKOM\ALM\alm_zain_bh\src\main\java\com\telkom\almBHZain\helper\helper.java
 D:\Files\TELKOM\ALM\alm_zain_bh\src\main\java\com\telkom\almBHZain\model\upldata.java
+D:\Files\TELKOM\ALM\alm_zain_bh\src\main\java\com\telkom\almBHZain\controller\BarhainController.java
 D:\Files\TELKOM\ALM\alm_zain_bh\src\main\java\com\telkom\almBHZain\model\tbItemCodeSubstitute.java
 D:\Files\TELKOM\ALM\alm_zain_bh\src\main\java\com\telkom\almBHZain\repo\DccLineRepo.java
 D:\Files\TELKOM\ALM\alm_zain_bh\src\main\java\com\telkom\almBHZain\model\poview.java
@@ -29,6 +30,7 @@ D:\Files\TELKOM\ALM\alm_zain_bh\src\main\java\com\telkom\almBHZain\repo\DCCRepos
 D:\Files\TELKOM\ALM\alm_zain_bh\src\main\java\com\telkom\almBHZain\model\tb_PurchaseOrderUPL.java
 D:\Files\TELKOM\ALM\alm_zain_bh\src\main\java\com\telkom\almBHZain\model\dccstatus.java
 D:\Files\TELKOM\ALM\alm_zain_bh\src\main\java\com\telkom\almBHZain\repo\inventoryrepo.java
+D:\Files\TELKOM\ALM\alm_zain_bh\src\main\java\com\telkom\almBHZain\repo\tbPoNumberRepo.java
 D:\Files\TELKOM\ALM\alm_zain_bh\src\main\java\com\telkom\almBHZain\repo\fileRecordRepo.java
 D:\Files\TELKOM\ALM\alm_zain_bh\src\main\java\com\telkom\almBHZain\model\inventorydata.java
 D:\Files\TELKOM\ALM\alm_zain_bh\src\main\java\com\telkom\almBHZain\model\tb_Approval_Log.java
@@ -56,10 +58,13 @@ D:\Files\TELKOM\ALM\alm_zain_bh\src\main\java\com\telkom\almBHZain\repo\dccstatu
 D:\Files\TELKOM\ALM\alm_zain_bh\src\main\java\com\telkom\almBHZain\repo\supplierrepo.java
 D:\Files\TELKOM\ALM\alm_zain_bh\src\main\java\com\telkom\almBHZain\model\polndata.java
 D:\Files\TELKOM\ALM\alm_zain_bh\src\main\java\com\telkom\almBHZain\config\GlobalCorsConfig.java
+D:\Files\TELKOM\ALM\alm_zain_bh\src\main\java\com\telkom\almBHZain\model\tb_Po.java
+D:\Files\TELKOM\ALM\alm_zain_bh\src\main\java\com\telkom\almBHZain\model\tbPoNumber.java
 D:\Files\TELKOM\ALM\alm_zain_bh\src\main\java\com\telkom\almBHZain\model\pohddata.java
 D:\Files\TELKOM\ALM\alm_zain_bh\src\main\java\com\telkom\almBHZain\model\departmentsdata.java
 D:\Files\TELKOM\ALM\alm_zain_bh\src\main\java\com\telkom\almBHZain\repo\uplrepo.java
 D:\Files\TELKOM\ALM\alm_zain_bh\src\main\java\com\telkom\almBHZain\model\DCC.java
+D:\Files\TELKOM\ALM\alm_zain_bh\src\main\java\com\telkom\almBHZain\repo\tbPoRepo.java
 D:\Files\TELKOM\ALM\alm_zain_bh\src\main\java\com\telkom\almBHZain\helper\LDAPAuthentication.java
 D:\Files\TELKOM\ALM\alm_zain_bh\src\main\java\com\telkom\almBHZain\model\supplierdata.java
 D:\Files\TELKOM\ALM\alm_zain_bh\src\main\java\com\telkom\almBHZain\repo\tbSerialNumberRepo.java

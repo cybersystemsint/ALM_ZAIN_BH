@@ -31,17 +31,6 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 )
 public class DataSourceConfig {
 
-    //.76 
-//    @Primary
-//    @Bean(name = {"mysqlDataSource", "dataSource"})
-//    public DataSource mysqlDataSource() {
-//        return DataSourceBuilder.create()
-//                .url("jdbc:mysql://127.0.0.1:3306/ALM_ZAIN_KSA")
-//                .username("root")
-//                .password("ALMDev@2024!")
-//                .driverClassName("com.mysql.cj.jdbc.Driver")
-//                .build();
-//    }
     //.BAHRAIN  
     @Primary
     @Bean(name = {"mysqlDataSource", "dataSource"})
@@ -53,50 +42,7 @@ public class DataSourceConfig {
                 .driverClassName("com.mysql.cj.jdbc.Driver")
                 .build();
     }
-    //KSA UAT
-//    @Primary
-//    @Bean(name = {"mysqlDataSource", "dataSource"})
-//    public DataSource mysqlDataSource() {
-//        return DataSourceBuilder.create()
-//                .url("jdbc:mysql://10.123.105.59:3306/ALM_ZAIN_KSA")
-//                .username("root")
-//                .password("ALM-KSA_db20@5")
-//                .driverClassName("com.mysql.cj.jdbc.Driver")
-//                .build();
-//    }
-    //KSA PROD 1 
-//    @Primary
-//    @Bean(name = {"mysqlDataSource", "dataSource"})
-//    public DataSource mysqlDataSource() {
-//        return DataSourceBuilder.create()
-//                .url("jdbc:mysql://10.123.102.67:3306/ALM_ZAIN_KSA")
-//                .username("root")
-//                .password("ALM-KSA_db20@5")
-//                .driverClassName("com.mysql.cj.jdbc.Driver")
-//                .build();
-//    }
-    //KSA PROD 2
-//    @Primary
-//    @Bean(name = {"mysqlDataSource", "dataSource"})
-//    public DataSource mysqlDataSource() {
-//        return DataSourceBuilder.create()
-//                .url("jdbc:mysql://10.123.102.69:3306/ALM_ZAIN_KSA")
-//                .username("root")
-//                .password("ALM-KSA_db20@5")
-//                .driverClassName("com.mysql.cj.jdbc.Driver")
-//                .build();
-//    }
-    //217.160.147.169
-//    @Primary
-//    @Bean(name = {"mysqlDataSource", "dataSource"})
-//    public DataSource mysqlDataSource() {
-//        return DataSourceBuilder.create()
-//                .url("jdbc:mysql://127.0.0.1:3306/ALM_ZAIN_KSA")
-//                .username("root")
-//                .password("ALMDev@2024!")
-//                .driverClassName("com.mysql.cj.jdbc.Driver")
-//                .build();
-//    }
+ 
     @Primary
     @Bean(name = {"mysqlEntityManagerFactory", "entityManagerFactory"})
     public LocalContainerEntityManagerFactoryBean mysqlEntityManagerFactory(

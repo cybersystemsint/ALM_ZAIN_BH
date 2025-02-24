@@ -1,4 +1,5 @@
 com\telkom\almBHZain\repo\tbChargeAccountRepo.class
+com\telkom\almBHZain\controller\BarhainController.class
 com\telkom\almBHZain\repo\polnrepo.class
 com\telkom\almBHZain\controller\ReportsController.class
 com\telkom\almBHZain\model\tbScope.class
@@ -13,6 +14,7 @@ com\telkom\almBHZain\repo\tbPurchaseOrderRepo.class
 com\telkom\almBHZain\model\DCC.class
 com\telkom\almBHZain\AlmKSAZainApplication.class
 com\telkom\almBHZain\model\DCCLineItem.class
+com\telkom\almBHZain\model\tbPoNumber.class
 com\telkom\almBHZain\repo\tbApprovalLogRepo.class
 com\telkom\almBHZain\repo\tbRegionRepo.class
 com\telkom\almBHZain\repo\tbArcApprovalRecordsRepo.class
@@ -41,6 +43,8 @@ com\telkom\almBHZain\repo\tbSiteRepo.class
 com\telkom\almBHZain\model\poview.class
 com\telkom\almBHZain\repo\tbItemCodeSubstituteRepo.class
 com\telkom\almBHZain\model\FileRecord.class
+com\telkom\almBHZain\model\tb_Po.class
+com\telkom\almBHZain\repo\tbPoNumberRepo.class
 com\telkom\almBHZain\repo\tbScopeApprovalLevelsRepo.class
 com\telkom\almBHZain\model\tb_Arc_ApprovalRecords.class
 com\telkom\almBHZain\model\tbScopeApprovalLevels.class
@@ -50,6 +54,7 @@ com\telkom\almBHZain\repo\tbPurchaseOrderUPLRepo.class
 com\telkom\almBHZain\model\tb_Approval_Log.class
 com\telkom\almBHZain\ServletInitializer.class
 com\telkom\almBHZain\repo\pohdrepo.class
+com\telkom\almBHZain\repo\tbPoRepo.class
 com\telkom\almBHZain\repo\DccLineRepo.class
 com\telkom\almBHZain\model\DccPoCombinedView.class
 com\telkom\almBHZain\model\tbItemCodeSubstitute.class

@@ -58,6 +58,69 @@ public class ReportsController {
         map.put("responseMessage", msg);
         return map;
     }
+    
+    /////BARHAIN PO MODULE NEW END POINTS 
+    
+    @PostMapping(value = "/reports/getPurchaseOrders", produces = "application/json")
+    @CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
+    public Map<String, Object> getPurchaseOrders(@RequestBody String req) {
+        JsonObject obj = new JsonParser().parse(req).getAsJsonObject();
+        String supplierId = obj.get("supplierId").getAsString();
+
+        int page = obj.has("page") ? obj.get("page").getAsInt() : 1;
+        int size = obj.has("size") ? obj.get("size").getAsInt() : 20000;
+
+        page = Math.max(page, 0);
+        size = Math.max(size, 0);
+
+        String paginationSql = "";
+
+        String countSql = "SELECT COUNT(*) FROM tb_Po PO";
+        if (!supplierId.equalsIgnoreCase("0")) {
+            countSql += " WHERE PO.vendorNumber='" + supplierId + "'";
+        }
+        int totalRecords = jdbcTemplate.queryForObject(countSql, Integer.class);
+
+        if (page == 0 && size == 0) {
+            paginationSql = "";
+        } else if (page == 1 && size == 20000) {
+            page = 0;
+            size = totalRecords;
+            page = Math.max(page, 1);
+            size = Math.max(size, 1);
+            int offset = (page - 1) * size;
+
+            paginationSql = " LIMIT " + size + " OFFSET " + offset;
+
+        } else {
+            page = Math.max(page, 1);
+            size = Math.max(size, 1);
+            int offset = (page - 1) * size;
+            paginationSql = " LIMIT " + size + " OFFSET " + offset;
+        }
+
+        String sql = "SELECT * FROM tb_Po PO";
+
+        if (!supplierId.equalsIgnoreCase("0")) {
+            sql += " WHERE PO.vendorNumber='" + supplierId + "'";
+        }
+
+        String finalSql = sql + paginationSql;
+
+        List<Map<String, Object>> result = jdbcTemplate.queryForList(finalSql);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("data", result);
+        response.put("totalRecords", totalRecords);
+        response.put("currentPage", page);
+        response.put("pageSize", size);
+        response.put("totalPages", (int) Math.ceil((double) totalRecords / size));
+
+        return response;
+    }
+    
+    
+    
 
     @PostMapping(value = "/reports/acceptanceReport", produces = "application/json")
     @CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
