@@ -5,7 +5,7 @@
 package com.telkom.almBHZain.controller;
 
 import org.apache.logging.log4j.LogManager;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.JsonObject;
@@ -19,9 +19,6 @@ import com.telkom.almBHZain.repo.tbPoRepo;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import java.io.*;
 import java.math.BigDecimal;
@@ -46,7 +43,6 @@ import org.apache.logging.log4j.LogManager;
 import org.json.JSONException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
@@ -247,4 +243,25 @@ public class BarhainController {
         return batchfilename;
     }
 
+    @DeleteMapping(value = "/deletePo/{recordNo}")
+    @CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
+    public Map<String, String> deletePo(@PathVariable long recordNo) {
+        loggger.info("PO DELETE REQUEST | recordNo: " + recordNo);
+        try {
+            tb_Po po = poRepo.findByRecordNo(recordNo);
+            if (po != null) {
+                poRepo.delete(po);
+                loggger.info("PO DELETE RESPONSE | Record Deleted Successfully");
+                return response("Success", "Record Deleted Successfully");
+            } else {
+                loggger.info("PO DELETE RESPONSE | Record Not Found");
+                return response("Error", "Record Not Found");
+            }
+        } catch (Exception ex) {
+            loggger.info("Exception | " + ex.toString());
+            return response("Error", ex.getMessage());
+        }
+    }
+
 }
+
