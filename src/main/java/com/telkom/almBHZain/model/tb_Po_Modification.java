@@ -1,11 +1,5 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.telkom.almBHZain.model;
-
-import java.io.Serializable;
-import java.sql.Date;
+import java.util.Date;
 
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
@@ -13,17 +7,9 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Table;
 
-
-/**
- *
- * @author jgithu
- */
-//  `updatedBy` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
-//  `updatedDatetime` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
 @Entity
-@Table(name = "tb_Po")
-public class tb_Po implements Serializable {
-
+@Table(name = "tb_po_modification")
+public class tb_Po_Modification {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     public long recordNo;
@@ -57,11 +43,17 @@ public class tb_Po implements Serializable {
     public String partNumber;
     public String l3Description;
     public String costCenter;
-    public String Approval_Status;
+    public String Approval_Status;// "pending modification", "approved", "rejected"
     public String createdBy;
     public Date createdDateTime;
     public String updatedBy;
     public Date updatedDatetime;
+  
+
+
+    // Getters and Setters
+ 
+
 
     public long getRecordNo() {
         return recordNo;
@@ -347,8 +339,9 @@ public class tb_Po implements Serializable {
         return updatedDatetime;
     }
 
+    public void setUpdatedDatetime(Date updatedDatetime) {
+        this.updatedDatetime = updatedDatetime;
+    }
 
-
-  
 
 }

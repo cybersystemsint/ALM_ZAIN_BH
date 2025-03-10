@@ -5,6 +5,8 @@
 package com.telkom.almBHZain.model;
 
 import java.io.Serializable;
+
+import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
@@ -22,6 +24,7 @@ public class tbPoNumber implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     public long id;
+    @Column(unique = true, nullable = false) // Ensure poNumber is unique
     public String poNumber;
 
     public long getId() {

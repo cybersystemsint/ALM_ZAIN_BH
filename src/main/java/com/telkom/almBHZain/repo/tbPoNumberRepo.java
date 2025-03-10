@@ -15,5 +15,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface tbPoNumberRepo extends JpaRepository<tbPoNumber, Long> {
     
       tbPoNumber findByPoNumber(String PoNumber);
-
+     
 }

@@ -4,11 +4,13 @@
  */
 package com.telkom.almBHZain.repo;
 
-import com.telkom.almBHZain.model.tb_Po;
 import java.util.List;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+
+import com.telkom.almBHZain.model.tb_Po;
 
 /**
  *
@@ -18,10 +20,10 @@ public interface tbPoRepo extends JpaRepository<tb_Po, Long> {
 
     List<tb_Po> findByPoNumberAndVendorNumber(String poId, String supplierId);
 
-    List<tb_Po> findByPoNumber(String PoNumber);
-
+    List<tb_Po> findAllByPoNumber(String PoNumber);
+    tb_Po findByPoNumber(String poNumber); 
     tb_Po findByRecordNo(long recordNo);
-
+    void deleteByPoNumber(String poNumber); // Method to delete PO items by poNumber
     @Query(value = "SELECT * FROM tb_Po d WHERE d.poNumber = :poNumber ORDER BY d.recordNo DESC LIMIT 1", nativeQuery = true)
     tb_Po findTopByPoNumber(@Param("poNumber") String poNumber);
 
@@ -30,4 +32,11 @@ public interface tbPoRepo extends JpaRepository<tb_Po, Long> {
 
 //    @Query(value = "SELECT * FROM tb_PurchaseOrder d WHERE d.poNumber = :poNumber AND d.lineNumber = :lineNumber AND d.releaseNum = :releaseNum  ORDER BY d.recordNo DESC LIMIT 1", nativeQuery = true)
 //    tbPurchaseOrder findTopByPoNumberAndLineNumberAndReleaseNum(@Param("poNumber") String poNumber, @Param("lineNumber") String lineNumber, @Param("releaseNum") String releaseNum);
+
+    public tb_Po findByPoNumberAndRecordNo(String poNumber, Long recordNo);
+
+      @Query("SELECT d FROM tb_Po d WHERE d.poNumber = :poNumber AND d.Approval_Status = :Approval_Status")
+    tb_Po findByPoNumberAndApprovalStatus(@Param("poNumber") String poNumber, @Param("Approval_Status") String Approval_Status);
+    
+  
 }

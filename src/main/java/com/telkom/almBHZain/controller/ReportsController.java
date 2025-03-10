@@ -1,23 +1,5 @@
 package com.telkom.almBHZain.controller;
 
-import com.telkom.almBHZain.repo.DccCombinedViewrepo;
-import com.telkom.almBHZain.repo.poviewrepo;
-import com.telkom.almBHZain.repo.dccpoviewrepo;
-import com.telkom.almBHZain.repo.uplrepo;
-
-import com.telkom.almBHZain.model.DccPoCombinedView;
-import com.telkom.almBHZain.model.upldata;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import com.google.gson.JsonSyntaxException;
-import com.telkom.almBHZain.helper.helper;
-import com.telkom.almBHZain.repo.tbChargeAccountRepo;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.web.bind.annotation.*;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -25,14 +7,40 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonSyntaxException;
+import com.telkom.almBHZain.helper.helper;
+import com.telkom.almBHZain.model.DccPoCombinedView;
+import com.telkom.almBHZain.model.tbPoNumber;
+import com.telkom.almBHZain.model.upldata;
+import com.telkom.almBHZain.repo.DccCombinedViewrepo;
+import com.telkom.almBHZain.repo.dccpoviewrepo;
+import com.telkom.almBHZain.repo.poviewrepo;
+import com.telkom.almBHZain.repo.tbChargeAccountRepo;
+import com.telkom.almBHZain.repo.tbPoNumberRepo;
+import com.telkom.almBHZain.repo.uplrepo;
 
 @RestController
 public class ReportsController {
 
     private final Logger loggger = LogManager.getLogger(ReportsController.class);
     private final JdbcTemplate jdbcTemplate;
+   
     @Autowired
     uplrepo uprepo;
 
@@ -47,6 +55,10 @@ public class ReportsController {
 
     @Autowired
     tbChargeAccountRepo chargeAccountRepo;
+  
+    
+    @Autowired
+    tbPoNumberRepo poNumberRepo;
 
     String genHeader(String msisdn, String reqid, String Channel) {
         return " | " + reqid + " | " + Channel + " | " + msisdn + " | ";
@@ -61,65 +73,139 @@ public class ReportsController {
     
     /////BARHAIN PO MODULE NEW END POINTS 
     
-    @PostMapping(value = "/reports/getPurchaseOrders", produces = "application/json")
-    @CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
-    public Map<String, Object> getPurchaseOrders(@RequestBody String req) {
-        JsonObject obj = new JsonParser().parse(req).getAsJsonObject();
-        String supplierId = obj.get("supplierId").getAsString();
+    // @PostMapping(value = "/reports/getPurchaseOrders", produces = "application/json")
+    // @CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
+    // public Map<String, Object> getPurchaseOrders(@RequestBody String req) {
+    //     JsonObject obj = new JsonParser().parse(req).getAsJsonObject();
+    //     String supplierId = obj.get("supplierId").getAsString();
+    //     int page = obj.has("page") ? obj.get("page").getAsInt() : 1;
+    //     int size = obj.has("size") ? obj.get("size").getAsInt() : 20000;
+    //     page = Math.max(page, 0);
+    //     size = Math.max(size, 0);
+    //     String paginationSql = "";
+    //     String countSql = "SELECT COUNT(*) FROM tb_Po PO";
+    //     if (!supplierId.equalsIgnoreCase("0")) {
+    //         countSql += " WHERE PO.vendorNumber='" + supplierId + "'";
+    //     }
+    //     int totalRecords = jdbcTemplate.queryForObject(countSql, Integer.class);
+    //     if (page == 0 && size == 0) {
+    //         paginationSql = "";
+    //     } else if (page == 1 && size == 20000) {
+    //         page = 0;
+    //         size = totalRecords;
+    //         page = Math.max(page, 1);
+    //         size = Math.max(size, 1);
+    //         int offset = (page - 1) * size;
+    //         paginationSql = " LIMIT " + size + " OFFSET " + offset;
+    //     } else {
+    //         page = Math.max(page, 1);
+    //         size = Math.max(size, 1);
+    //         int offset = (page - 1) * size;
+    //         paginationSql = " LIMIT " + size + " OFFSET " + offset;
+    //     }
+    //     String sql = "SELECT * FROM tb_Po PO";
+    //     if (!supplierId.equalsIgnoreCase("0")) {
+    //         sql += " WHERE PO.vendorNumber='" + supplierId + "'";
+    //     }
+    //     String finalSql = sql + paginationSql;
+    //     List<Map<String, Object>> result = jdbcTemplate.queryForList(finalSql);
+    //     Map<String, Object> response = new HashMap<>();
+    //     response.put("data", result);
+    //     response.put("totalRecords", totalRecords);
+    //     response.put("currentPage", page);
+    //     response.put("pageSize", size);
+    //     response.put("totalPages", (int) Math.ceil((double) totalRecords / size));
+    //     return response;
+    // }
+    
+  
+ @GetMapping(value = "/getPONumbers", produces = "application/json")
+@CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
+public Map<String, Object> getPONumbers() {
+    loggger.info("Fetching all PONumbers");
+    Map<String, Object> response = new HashMap<>();
 
-        int page = obj.has("page") ? obj.get("page").getAsInt() : 1;
-        int size = obj.has("size") ? obj.get("size").getAsInt() : 20000;
+    try {
+        // Fetch all poNumbers from the database
+        List<tbPoNumber> poNumbers = poNumberRepo.findAll();
 
-        page = Math.max(page, 0);
-        size = Math.max(size, 0);
-
-        String paginationSql = "";
-
-        String countSql = "SELECT COUNT(*) FROM tb_Po PO";
-        if (!supplierId.equalsIgnoreCase("0")) {
-            countSql += " WHERE PO.vendorNumber='" + supplierId + "'";
-        }
-        int totalRecords = jdbcTemplate.queryForObject(countSql, Integer.class);
-
-        if (page == 0 && size == 0) {
-            paginationSql = "";
-        } else if (page == 1 && size == 20000) {
-            page = 0;
-            size = totalRecords;
-            page = Math.max(page, 1);
-            size = Math.max(size, 1);
-            int offset = (page - 1) * size;
-
-            paginationSql = " LIMIT " + size + " OFFSET " + offset;
-
-        } else {
-            page = Math.max(page, 1);
-            size = Math.max(size, 1);
-            int offset = (page - 1) * size;
-            paginationSql = " LIMIT " + size + " OFFSET " + offset;
-        }
-
-        String sql = "SELECT * FROM tb_Po PO";
-
-        if (!supplierId.equalsIgnoreCase("0")) {
-            sql += " WHERE PO.vendorNumber='" + supplierId + "'";
-        }
-
-        String finalSql = sql + paginationSql;
-
-        List<Map<String, Object>> result = jdbcTemplate.queryForList(finalSql);
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("data", result);
-        response.put("totalRecords", totalRecords);
-        response.put("currentPage", page);
-        response.put("pageSize", size);
-        response.put("totalPages", (int) Math.ceil((double) totalRecords / size));
-
-        return response;
+        // Prepare the response
+        response.put("status", "Success");
+        response.put("message", "PONumbers fetched successfully");
+        response.put("data", poNumbers);
+    } catch (Exception ex) {
+        loggger.info("Exception |  " + ex.toString());
+        response.put("status", "Error");
+        response.put("message", "Failed to fetch PONumbers: " + ex.getMessage());
     }
-    
-    
+
+    return response;
+}   
+
+
+
+// Bahrain get PO items
+
+@GetMapping(value = "/reports/getPurchaseOrders", produces = "application/json")
+@CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
+public Map<String, Object> getPurchaseOrders(
+        @RequestParam(name = "supplierId", defaultValue = "0") String supplierId,
+        @RequestParam(name = "page", defaultValue = "1") int page,
+        @RequestParam(name = "size", defaultValue = "20000") int size) {
+
+    page = Math.max(page, 0);
+    size = Math.max(size, 0);
+    String paginationSql = "";
+    String countSql = "SELECT COUNT(*) FROM tb_Po PO";
+    if (!supplierId.equalsIgnoreCase("0")) {
+        countSql += " WHERE PO.vendorNumber='" + supplierId + "'";
+    }
+    int totalRecords = jdbcTemplate.queryForObject(countSql, Integer.class);
+    if (page == 0 && size == 0) {
+        paginationSql = "";
+    } else if (page == 1 && size == 20000) {
+        page = 0;
+        size = totalRecords;
+        page = Math.max(page, 1);
+        size = Math.max(size, 1);
+        int offset = (page - 1) * size;
+        paginationSql = " LIMIT " + size + " OFFSET " + offset;
+    } else {
+        page = Math.max(page, 1);
+        size = Math.max(size, 1);
+        int offset = (page - 1) * size;
+        paginationSql = " LIMIT " + size + " OFFSET " + offset;
+    }
+    String sql = "SELECT * FROM tb_Po PO";
+    if (!supplierId.equalsIgnoreCase("0")) {
+        sql += " WHERE PO.vendorNumber='" + supplierId + "'";
+    }
+    String finalSql = sql + paginationSql;
+    List<Map<String, Object>> result = jdbcTemplate.queryForList(finalSql);
+    Map<String, Object> response = new HashMap<>();
+    response.put("data", result);
+    response.put("totalRecords", totalRecords);
+    response.put("currentPage", page);
+    response.put("pageSize", size);
+    response.put("totalPages", (int) Math.ceil((double) totalRecords / size));
+    return response;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     
 
     @PostMapping(value = "/reports/acceptanceReport", produces = "application/json")
