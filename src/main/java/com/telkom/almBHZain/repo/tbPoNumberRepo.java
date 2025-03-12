@@ -4,9 +4,9 @@
  */
 package com.telkom.almBHZain.repo;
 
-import com.telkom.almBHZain.model.tbPoNumber;
-import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.telkom.almBHZain.model.tbPoNumber;
 
 /**
  *

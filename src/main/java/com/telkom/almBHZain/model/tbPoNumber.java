@@ -26,6 +26,18 @@ public class tbPoNumber implements Serializable {
     public long id;
     @Column(unique = true, nullable = false) // Ensure poNumber is unique
     public String poNumber;
+    @Column(name = "Approval_Status")
+    public String approvalStatus; 
+
+
+
+    public String getApprovalStatus() {
+        return approvalStatus;
+    }
+
+    public void setApprovalStatus(String approvalStatus) {
+        this.approvalStatus = approvalStatus;
+    }
 
     public long getId() {
         return id;
@@ -42,5 +54,7 @@ public class tbPoNumber implements Serializable {
     public void setPoNumber(String poNumber) {
         this.poNumber = poNumber;
     }
+
+
 
 }

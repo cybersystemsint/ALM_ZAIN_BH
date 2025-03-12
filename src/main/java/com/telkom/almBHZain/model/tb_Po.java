@@ -63,6 +63,14 @@ public class tb_Po implements Serializable {
     public String updatedBy;
     public Date updatedDatetime;
 
+    public Date getUpdatedDatetime() {
+        return updatedDatetime;
+    }
+
+    public void setUpdatedDatetime(java.util.Date updatedDatetime) {
+        this.updatedDatetime = (Date) updatedDatetime;
+    }
+
     public long getRecordNo() {
         return recordNo;
     }
@@ -343,9 +351,7 @@ public class tb_Po implements Serializable {
         this.updatedBy = updatedBy;
     }
 
-    public Date getUpdatedDatetime() {
-        return updatedDatetime;
-    }
+
 
 
 

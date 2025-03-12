@@ -12,6 +12,7 @@ import javax.persistence.Table;
 public class tb_Po_Modification {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    public Long Id;
     public long recordNo;
     public Date recordDateTime;
     public String poNumber;
@@ -43,7 +44,7 @@ public class tb_Po_Modification {
     public String partNumber;
     public String l3Description;
     public String costCenter;
-    public String Approval_Status;// "pending modification", "approved", "rejected"
+    public String Approval_Status;
     public String createdBy;
     public Date createdDateTime;
     public String updatedBy;
@@ -341,6 +342,19 @@ public class tb_Po_Modification {
 
     public void setUpdatedDatetime(Date updatedDatetime) {
         this.updatedDatetime = updatedDatetime;
+    }
+
+    public Long getId() {
+        return Id;
+    }
+
+    public void setId(Long Id) {
+        this.Id = Id;
+    }
+
+    public tb_Po_Modification orElseThrow(Object object) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'orElseThrow'");
     }
 
 

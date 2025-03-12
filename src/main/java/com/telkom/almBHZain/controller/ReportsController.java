@@ -11,9 +11,11 @@ import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -26,9 +28,11 @@ import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 import com.telkom.almBHZain.helper.helper;
 import com.telkom.almBHZain.model.DccPoCombinedView;
+import com.telkom.almBHZain.model.Workflow;
 import com.telkom.almBHZain.model.tbPoNumber;
 import com.telkom.almBHZain.model.upldata;
 import com.telkom.almBHZain.repo.DccCombinedViewrepo;
+import com.telkom.almBHZain.repo.WorkflowRepository;
 import com.telkom.almBHZain.repo.dccpoviewrepo;
 import com.telkom.almBHZain.repo.poviewrepo;
 import com.telkom.almBHZain.repo.tbChargeAccountRepo;
@@ -59,6 +63,10 @@ public class ReportsController {
     
     @Autowired
     tbPoNumberRepo poNumberRepo;
+
+    @Autowired
+     WorkflowRepository workflowRepository;
+
 
     String genHeader(String msisdn, String reqid, String Channel) {
         return " | " + reqid + " | " + Channel + " | " + msisdn + " | ";
@@ -1005,4 +1013,25 @@ public Map<String, Object> getPurchaseOrders(
         return null;
     }
 
+
+
+        // Fetch all approval requests
+    @GetMapping("/workflow")
+    public ResponseEntity<List<Workflow>> getAllWorkflows() {
+        return ResponseEntity.ok(workflowRepository.findAll());
+    }
+
+    // Fetch approval request by ID
+    @GetMapping("/workflow/{id}")
+    public ResponseEntity<Workflow> getWorkflowById(@PathVariable Long id) {
+        return workflowRepository.findById(id)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    // Fetch approval requests by PO Number
+    @GetMapping("/workflow/po/{poNumber}")
+    public ResponseEntity<List<Workflow>> getWorkflowsByPoNumber(@PathVariable String poNumber) {
+        return ResponseEntity.ok(workflowRepository.findByPoNumber(poNumber));
+    }
 }
