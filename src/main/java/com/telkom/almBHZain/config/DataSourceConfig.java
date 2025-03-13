@@ -6,6 +6,7 @@ package com.telkom.almBHZain.config;
 
 import javax.persistence.EntityManagerFactory;
 import javax.sql.DataSource;
+
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.boot.orm.jpa.EntityManagerFactoryBuilder;
@@ -13,8 +14,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
-import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 import org.springframework.orm.jpa.JpaTransactionManager;
+import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 
@@ -36,7 +37,7 @@ public class DataSourceConfig {
     @Bean(name = {"mysqlDataSource", "dataSource"})
     public DataSource mysqlDataSource() {
         return DataSourceBuilder.create()
-                .url("jdbc:mysql://217.160.157.126:3306/ALM_ZAIN_BH")
+                .url("jdbc:mysql://82.165.235.25:3306/ALM_ZAIN_BH")
                 .username("root")
                 .password("ALMDev@2025!")
                 .driverClassName("com.mysql.cj.jdbc.Driver")
