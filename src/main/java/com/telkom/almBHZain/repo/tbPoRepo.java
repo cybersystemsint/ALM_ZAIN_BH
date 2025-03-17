@@ -38,5 +38,6 @@ public interface tbPoRepo extends JpaRepository<tb_Po, Long> {
       @Query("SELECT d FROM tb_Po d WHERE d.poNumber = :poNumber AND d.Approval_Status = :Approval_Status")
     tb_Po findByPoNumberAndApprovalStatus(@Param("poNumber") String poNumber, @Param("Approval_Status") String Approval_Status);
     
-  
+    boolean existsByModelNumber(String modelNumber);
+
 }

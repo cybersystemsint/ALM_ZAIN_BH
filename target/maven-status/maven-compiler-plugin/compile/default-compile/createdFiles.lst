@@ -1,7 +1,6 @@
 com/telkom/almBHZain/model/tbScope.class
 com/telkom/almBHZain/model/tb_ChargeAccount.class
 com/telkom/almBHZain/repo/uplrepo.class
-com/telkom/almBHZain/controller/BarhainController$ResourceNotFoundException.class
 com/telkom/almBHZain/model/tb_Site.class
 com/telkom/almBHZain/model/tb_Approval_Log.class
 com/telkom/almBHZain/repo/tbSiteRepo.class
@@ -73,4 +72,5 @@ com/telkom/almBHZain/model/tbScopeApprovalLevels.class
 com/telkom/almBHZain/repo/modificationRepo.class
 com/telkom/almBHZain/repo/tbPurchaseOrderUPLRepo.class
 com/telkom/almBHZain/repo/poviewrepo.class
+com/telkom/almBHZain/controller/ApprovalWorkflowController.class
 com/telkom/almBHZain/repo/deptsrepo.class

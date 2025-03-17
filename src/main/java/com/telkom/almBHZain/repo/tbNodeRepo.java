@@ -12,7 +12,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
  *
  * @author jgithu
  */
-public interface tbNodeRepo extends JpaRepository<tbNode, Long> {
+public interface tbNodeRepo extends JpaRepository<tbNode, Integer> {
 
     List<tbNode> findByPartNumberAndSerialNumber(String partNumber, String serialNumber);
 }

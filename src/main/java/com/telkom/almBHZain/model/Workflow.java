@@ -13,6 +13,7 @@ import javax.persistence.Table;
 @Table(name = "tb_WF_PO_Approval_Request")
 public class Workflow {
 
+    
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "ID")

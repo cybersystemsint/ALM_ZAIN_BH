@@ -72,62 +72,27 @@ public class ReportsController {
         return " | " + reqid + " | " + Channel + " | " + msisdn + " | ";
     }
 
-    private Map<String, String> response(String result, String msg) {
-        HashMap<String, String> map = new HashMap<>();
-        map.put("responseCode", result.equalsIgnoreCase("success") ? "0" : "1001");
-        map.put("responseMessage", msg);
-        return map;
+
+
+// get all approval requests
+@GetMapping("/workflow")
+public ResponseEntity<List<Workflow>> getAllWorkflows() {
+    return ResponseEntity.ok(workflowRepository.findAll());
+}
+//get pending workflows
+@GetMapping("/pendingWorkflows")
+public ResponseEntity<List<Workflow>> getPendingPOs(@RequestParam(required = false) String updatedStatus) {
+    List<Workflow> workflows;
+    if (updatedStatus == null) {
+        workflows = workflowRepository.findByUpdatedStatusIsNull();
+    } else {
+        workflows = workflowRepository.findByUpdatedStatus(updatedStatus);
     }
-    
-    /////BARHAIN PO MODULE NEW END POINTS 
-    
-    // @PostMapping(value = "/reports/getPurchaseOrders", produces = "application/json")
-    // @CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
-    // public Map<String, Object> getPurchaseOrders(@RequestBody String req) {
-    //     JsonObject obj = new JsonParser().parse(req).getAsJsonObject();
-    //     String supplierId = obj.get("supplierId").getAsString();
-    //     int page = obj.has("page") ? obj.get("page").getAsInt() : 1;
-    //     int size = obj.has("size") ? obj.get("size").getAsInt() : 20000;
-    //     page = Math.max(page, 0);
-    //     size = Math.max(size, 0);
-    //     String paginationSql = "";
-    //     String countSql = "SELECT COUNT(*) FROM tb_Po PO";
-    //     if (!supplierId.equalsIgnoreCase("0")) {
-    //         countSql += " WHERE PO.vendorNumber='" + supplierId + "'";
-    //     }
-    //     int totalRecords = jdbcTemplate.queryForObject(countSql, Integer.class);
-    //     if (page == 0 && size == 0) {
-    //         paginationSql = "";
-    //     } else if (page == 1 && size == 20000) {
-    //         page = 0;
-    //         size = totalRecords;
-    //         page = Math.max(page, 1);
-    //         size = Math.max(size, 1);
-    //         int offset = (page - 1) * size;
-    //         paginationSql = " LIMIT " + size + " OFFSET " + offset;
-    //     } else {
-    //         page = Math.max(page, 1);
-    //         size = Math.max(size, 1);
-    //         int offset = (page - 1) * size;
-    //         paginationSql = " LIMIT " + size + " OFFSET " + offset;
-    //     }
-    //     String sql = "SELECT * FROM tb_Po PO";
-    //     if (!supplierId.equalsIgnoreCase("0")) {
-    //         sql += " WHERE PO.vendorNumber='" + supplierId + "'";
-    //     }
-    //     String finalSql = sql + paginationSql;
-    //     List<Map<String, Object>> result = jdbcTemplate.queryForList(finalSql);
-    //     Map<String, Object> response = new HashMap<>();
-    //     response.put("data", result);
-    //     response.put("totalRecords", totalRecords);
-    //     response.put("currentPage", page);
-    //     response.put("pageSize", size);
-    //     response.put("totalPages", (int) Math.ceil((double) totalRecords / size));
-    //     return response;
-    // }
-    
-  
- @GetMapping(value = "/getPONumbers", produces = "application/json")
+    return ResponseEntity.ok(workflows);
+}
+        
+//get all poNumbers
+ @GetMapping(value = "/poNumbers", produces = "application/json")
 @CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
 public Map<String, Object> getPONumbers() {
     loggger.info("Fetching all PONumbers");
@@ -150,11 +115,8 @@ public Map<String, Object> getPONumbers() {
     return response;
 }   
 
-
-
-// Bahrain get PO items
-
-@GetMapping(value = "/reports/getPurchaseOrders", produces = "application/json")
+// get all poItems
+@GetMapping(value = "/poItems", produces = "application/json")
 @CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
 public Map<String, Object> getPurchaseOrders(
         @RequestParam(name = "supplierId", defaultValue = "0") String supplierId,
@@ -199,23 +161,62 @@ public Map<String, Object> getPurchaseOrders(
     return response;
 }
 
+//get poNumbers and their poItems
+@GetMapping(value = "/poItem", produces = "application/json")
+@CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
+public Map<String, Object> getPurchaseOrder(
+        @RequestParam(name = "supplierId", defaultValue = "0") String supplierId,
+        @RequestParam(name = "page", defaultValue = "1") int page,
+        @RequestParam(name = "size", defaultValue = "20000") int size) {
 
+    page = Math.max(page, 1); // Ensure page is at least 1
+    size = Math.max(size, 1); // Ensure size is at least 1
 
+    // Base SQL for fetching all records
+    String sql = "SELECT * FROM tb_Po PO";
+    if (!supplierId.equalsIgnoreCase("0")) {
+        sql += " WHERE PO.vendorNumber='" + supplierId + "'";
+    }
+    sql += " ORDER BY PO.poNumber";
 
+    // Execute the query to fetch all records
+    List<Map<String, Object>> allRecords = jdbcTemplate.queryForList(sql);
 
+    // Group PO items by poNumber
+    Map<String, List<Map<String, Object>>> groupedResult = new HashMap<>();
+    for (Map<String, Object> row : allRecords) {
+        String poNumber = (String) row.get("poNumber");
+        groupedResult.computeIfAbsent(poNumber, k -> new ArrayList<>()).add(row);
+    }
 
+    // Convert groupedResult to a list of entries for pagination
+    List<Map.Entry<String, List<Map<String, Object>>>> groupedList = new ArrayList<>(groupedResult.entrySet());
 
+    // Calculate pagination details
+    int totalRecords = groupedList.size();
+    int totalPages = (int) Math.ceil((double) totalRecords / size);
+    int fromIndex = (page - 1) * size;
+    int toIndex = Math.min(fromIndex + size, totalRecords);
 
+    // Apply pagination to the grouped list
+    List<Map.Entry<String, List<Map<String, Object>>>> paginatedList = groupedList.subList(fromIndex, toIndex);
 
+    // Convert paginated list back to a map
+    Map<String, List<Map<String, Object>>> paginatedResult = new HashMap<>();
+    for (Map.Entry<String, List<Map<String, Object>>> entry : paginatedList) {
+        paginatedResult.put(entry.getKey(), entry.getValue());
+    }
 
+    // Prepare the response
+    Map<String, Object> response = new HashMap<>();
+    response.put("data", paginatedResult);
+    response.put("totalRecords", totalRecords);
+    response.put("currentPage", page);
+    response.put("pageSize", size);
+    response.put("totalPages", totalPages);
 
-
-
-
-
-
-    
-
+    return response;
+}
     @PostMapping(value = "/reports/acceptanceReport", produces = "application/json")
     @CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
     public List<Map<String, Object>> acceptanceReport(@RequestBody String req) {
@@ -1015,23 +1016,6 @@ public Map<String, Object> getPurchaseOrders(
 
 
 
-        // Fetch all approval requests
-    @GetMapping("/workflow")
-    public ResponseEntity<List<Workflow>> getAllWorkflows() {
-        return ResponseEntity.ok(workflowRepository.findAll());
-    }
 
-    // Fetch approval request by ID
-    @GetMapping("/workflow/{id}")
-    public ResponseEntity<Workflow> getWorkflowById(@PathVariable Long id) {
-        return workflowRepository.findById(id)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
-    }
 
-    // Fetch approval requests by PO Number
-    @GetMapping("/workflow/po/{poNumber}")
-    public ResponseEntity<List<Workflow>> getWorkflowsByPoNumber(@PathVariable String poNumber) {
-        return ResponseEntity.ok(workflowRepository.findByPoNumber(poNumber));
-    }
 }
