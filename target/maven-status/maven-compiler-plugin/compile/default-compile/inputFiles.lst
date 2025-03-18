@@ -30,7 +30,6 @@
 /home/essy/ALM_ZAIN_BH/src/main/java/com/telkom/almBHZain/repo/tbSerialNumberRepo.java
 /home/essy/ALM_ZAIN_BH/src/main/java/com/telkom/almBHZain/repo/deptsrepo.java
 /home/essy/ALM_ZAIN_BH/src/main/java/com/telkom/almBHZain/repo/tbApprovalLogRepo.java
-/home/essy/ALM_ZAIN_BH/src/main/java/com/telkom/almBHZain/controller/ApprovalWorkflowController.java
 /home/essy/ALM_ZAIN_BH/src/main/java/com/telkom/almBHZain/model/tbItemCodeSubstitute.java
 /home/essy/ALM_ZAIN_BH/src/main/java/com/telkom/almBHZain/config/DataSourceConfig.java
 /home/essy/ALM_ZAIN_BH/src/main/java/com/telkom/almBHZain/repo/tbErrorMessageRepo.java

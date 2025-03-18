@@ -72,5 +72,4 @@ com/telkom/almBHZain/model/tbScopeApprovalLevels.class
 com/telkom/almBHZain/repo/modificationRepo.class
 com/telkom/almBHZain/repo/tbPurchaseOrderUPLRepo.class
 com/telkom/almBHZain/repo/poviewrepo.class
-com/telkom/almBHZain/controller/ApprovalWorkflowController.class
 com/telkom/almBHZain/repo/deptsrepo.class
