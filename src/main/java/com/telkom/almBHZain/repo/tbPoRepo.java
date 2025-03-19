@@ -23,6 +23,8 @@ public interface tbPoRepo extends JpaRepository<tb_Po, Long> {
     List<tb_Po> findAllByPoNumber(String PoNumber);
     tb_Po findByPoNumber(String poNumber); 
     tb_Po findByRecordNo(long recordNo);
+    // New method using poNumberEntity relationship
+    List<tb_Po> findByPoNumberEntity_PoNumber(String poNumber);
     void deleteByPoNumber(String poNumber); // Method to delete PO items by poNumber
     @Query(value = "SELECT * FROM tb_Po d WHERE d.poNumber = :poNumber ORDER BY d.recordNo DESC LIMIT 1", nativeQuery = true)
     tb_Po findTopByPoNumber(@Param("poNumber") String poNumber);

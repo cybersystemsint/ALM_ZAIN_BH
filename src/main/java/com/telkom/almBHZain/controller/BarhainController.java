@@ -500,9 +500,51 @@ private Map<String, String> processAddition(String poNumber, String action) {
     }
     return result;
 }
+// private Map<String, String> processDeletion(String poNumber, String action) {
+//     Map<String, String> result = new HashMap<>();
+//     result.put("poNumber", poNumber);
+//     try {
+//         // Fetch the PO number record
+//         tbPoNumber existingPoNumber = poNumberRepo.findByPoNumber(poNumber);
+//         if (existingPoNumber == null) {
+//             result.put("status", "Error");
+//             result.put("message", "PO Number does not exist: " + poNumber);
+//             return result;
+//         }
+//         // Check if the approval status is "Pending Deletion"
+//         if (!"Pending Deletion".equals(existingPoNumber.getApprovalStatus())) {
+//             result.put("status", "Error");
+//             result.put("message", "PO Number is not in 'Pending Deletion' status: " + poNumber);
+//             return result;
+//         }
+//         // Determine whether to approve or reject based on the action
+//         if ("approve".equalsIgnoreCase(action)) {
+//             // Delete the PO number from the database
+//             poNumberRepo.delete(existingPoNumber);
+//             result.put("message", "PO number deletion approved and removed from database.");  
+//             // Update the workflow status
+//             updateWorkflow(poNumber, "Pending Deletion", "Deletion Approved", "PO number deletion approved and removed.");
+//         } else if ("reject".equalsIgnoreCase(action)) {
+//             existingPoNumber.setApprovalStatus("Deletion Rejected");
+//             poNumberRepo.save(existingPoNumber);
+//             result.put("message", "PO number deletion rejected.");
+//             // Update the workflow status
+//             updateWorkflow(poNumber, "Pending Deletion", "Deletion Rejected", "PO number deletion rejected.");
+//         }
+//         result.put("status", "Success");
+//     } catch (Exception ex) {
+//         result.put("status", "Error");
+//         result.put("message", "Failed to process deletion: " + ex.getMessage());
+//         logger.error("Exception while processing deletion for PO Number: {} | Error: {}", poNumber, ex);
+//     }
+//     return result;
+// }
+
+
 private Map<String, String> processDeletion(String poNumber, String action) {
     Map<String, String> result = new HashMap<>();
     result.put("poNumber", poNumber);
+
     try {
         // Fetch the PO number record
         tbPoNumber existingPoNumber = poNumberRepo.findByPoNumber(poNumber);
@@ -511,34 +553,47 @@ private Map<String, String> processDeletion(String poNumber, String action) {
             result.put("message", "PO Number does not exist: " + poNumber);
             return result;
         }
+
         // Check if the approval status is "Pending Deletion"
         if (!"Pending Deletion".equals(existingPoNumber.getApprovalStatus())) {
             result.put("status", "Error");
             result.put("message", "PO Number is not in 'Pending Deletion' status: " + poNumber);
             return result;
         }
+
         // Determine whether to approve or reject based on the action
         if ("approve".equalsIgnoreCase(action)) {
-            // Delete the PO number from the database
-            poNumberRepo.delete(existingPoNumber);
-            result.put("message", "PO number deletion approved and removed from database.");  
+            // Delete the PO number and all associated PO items (cascading delete)
+            poNumberRepo.delete(existingPoNumber); // Cascading delete will handle associated tb_Po items
+            result.put("message", "PO number deletion approved and removed from database.");
+
             // Update the workflow status
             updateWorkflow(poNumber, "Pending Deletion", "Deletion Approved", "PO number deletion approved and removed.");
         } else if ("reject".equalsIgnoreCase(action)) {
+            // Reject the deletion request
             existingPoNumber.setApprovalStatus("Deletion Rejected");
             poNumberRepo.save(existingPoNumber);
             result.put("message", "PO number deletion rejected.");
+
             // Update the workflow status
             updateWorkflow(poNumber, "Pending Deletion", "Deletion Rejected", "PO number deletion rejected.");
+        } else {
+            // Invalid action
+            result.put("status", "Error");
+            result.put("message", "Invalid action: " + action);
+            return result;
         }
+
         result.put("status", "Success");
     } catch (Exception ex) {
         result.put("status", "Error");
         result.put("message", "Failed to process deletion: " + ex.getMessage());
         logger.error("Exception while processing deletion for PO Number: {} | Error: {}", poNumber, ex);
     }
+
     return result;
 }
+
 
 private void updateWorkflow(String poNumber, String originalStatus, String updatedStatus, String comments) {
     // Fetch all workflow entries for the given PO number and original status

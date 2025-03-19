@@ -5,13 +5,19 @@
 package com.telkom.almBHZain.model;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 
+import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.OneToMany;
 import javax.persistence.Table;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 /**
  *
@@ -29,7 +35,17 @@ public class tbPoNumber implements Serializable {
     @Column(name = "Approval_Status")
     public String approvalStatus; 
 
+    // One-to-Many relationship with tb_Po
+    @OneToMany(mappedBy = "poNumberEntity", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore 
+    private List<tb_Po> poItems = new ArrayList<>();
+    public List<tb_Po> getPoItems() {
+        return poItems;
+    }
 
+    public void setPoItems(List<tb_Po> poItems) {
+        this.poItems = poItems;
+    }
 
     public String getApprovalStatus() {
         return approvalStatus;

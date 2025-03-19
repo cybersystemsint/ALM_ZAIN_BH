@@ -15,7 +15,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -90,9 +89,8 @@ public ResponseEntity<List<Workflow>> getPendingPOs(@RequestParam(required = fal
     }
     return ResponseEntity.ok(workflows);
 }
-        
-//get all poNumbers
- @GetMapping(value = "/poNumbers", produces = "application/json")
+   
+@GetMapping(value = "/poNumbers", produces = "application/json")
 @CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
 public Map<String, Object> getPONumbers() {
     loggger.info("Fetching all PONumbers");
@@ -113,7 +111,32 @@ public Map<String, Object> getPONumbers() {
     }
 
     return response;
-}   
+}
+
+
+// //get all poNumbers
+//  @GetMapping(value = "/poNumbers", produces = "application/json")
+// @CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
+// public Map<String, Object> getPONumbers() {
+//     loggger.info("Fetching all PONumbers");
+//     Map<String, Object> response = new HashMap<>();
+
+//     try {
+//         // Fetch all poNumbers from the database
+//         List<tbPoNumber> poNumbers = poNumberRepo.findAll();
+
+//         // Prepare the response
+//         response.put("status", "Success");
+//         response.put("message", "PONumbers fetched successfully");
+//         response.put("data", poNumbers);
+//     } catch (Exception ex) {
+//         loggger.info("Exception |  " + ex.toString());
+//         response.put("status", "Error");
+//         response.put("message", "Failed to fetch PONumbers: " + ex.getMessage());
+//     }
+
+//     return response;
+// }   
 
 // get all poItems
 @GetMapping(value = "/poItems", produces = "application/json")

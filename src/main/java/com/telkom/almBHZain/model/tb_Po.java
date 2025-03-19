@@ -11,6 +11,8 @@ import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
 import javax.persistence.Table;
 
 
@@ -62,6 +64,22 @@ public class tb_Po implements Serializable {
     public Date createdDateTime;
     public String updatedBy;
     public Date updatedDatetime;
+
+    // Many-to-One relationship with tbPoNumber
+    @ManyToOne
+    @JoinColumn(name = "poNumber", referencedColumnName = "poNumber", insertable = false, updatable = false)
+    private tbPoNumber poNumberEntity;
+
+    public tbPoNumber getPoNumberEntity() {
+        return poNumberEntity;
+    }
+
+    public void setPoNumberEntity(tbPoNumber poNumberEntity) {
+        this.poNumberEntity = poNumberEntity;
+        if (poNumberEntity != null) {
+            this.poNumber = poNumberEntity.getPoNumber(); // Sync poNumber with poNumberEntity
+        }
+    }
 
     public Date getUpdatedDatetime() {
         return updatedDatetime;
