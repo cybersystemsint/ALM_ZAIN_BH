@@ -89,7 +89,11 @@ public ResponseEntity<List<Workflow>> getPendingPOs(@RequestParam(required = fal
     }
     return ResponseEntity.ok(workflows);
 }
-   
+@GetMapping("/POUpdatedWorkflow")
+public ResponseEntity<List<Workflow>> getProcessedWorkflows() {
+    List<Workflow> workflows = workflowRepository.findByUpdatedStatusIsNotNull();
+    return ResponseEntity.ok(workflows);
+}
 @GetMapping(value = "/poNumbers", produces = "application/json")
 @CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
 public Map<String, Object> getPONumbers() {

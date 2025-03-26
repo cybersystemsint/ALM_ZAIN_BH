@@ -19,5 +19,7 @@ public interface WorkflowRepository extends JpaRepository<Workflow, Long> {
 
     public List<Workflow> findByPoNumberAndOriginalStatus(String poNumber, String pending_Deletion);
 
+    public Workflow findByPoNumberAndRecordNoAndOriginalStatus(String poNumber, Long recordNo, String originalStatus);
 
+    List<Workflow> findByUpdatedStatusIsNotNull();
 }

@@ -21,6 +21,8 @@ public class Workflow {
 
     @Column(name = "PO_NUMBER")
     private String poNumber;
+    @Column(name = "RECORD_NO") // Add this column
+    private Long recordNo;
 
     @Column(name = "OLD_PO_NUMBER")
     private String oldPoNumber;
@@ -147,5 +149,13 @@ public class Workflow {
 
     public void setComments(String comments) {
         this.comments = comments;
+    }
+
+    public Long getRecordNo() {
+        return recordNo;
+    }
+
+    public void setRecordNo(Long recordNo) {
+        this.recordNo = recordNo;
     }
 }

@@ -105,24 +105,58 @@ public class BarhainController {
     }
 }
 
-//deletion request of poNumber
+
 @DeleteMapping(value = "/poNumbers/{poNumber}")
 @CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
 public Map<String, String> requestDeletePoNum(@PathVariable String poNumber) {
     logger.info("PO NUMBER DELETE REQUEST | poNumber: " + poNumber);
     Map<String, String> response = new HashMap<>();
+
     try {
-        // Check if the PO number exists in the tb_PoNumber table
+        // 1. Check if PO number exists
         tbPoNumber poNumberEntry = poNumberRepo.findByPoNumber(poNumber);
         if (poNumberEntry == null) {
             response.put("status", "Error");
             response.put("message", "PO number " + poNumber + " does not exist");
             return response;
         }
-        // Update the approval status of the PO number to "Pending Deletion"
+
+        // 2. Check if PO number itself is pending
+        String poNumberStatus = poNumberEntry.getApprovalStatus();
+        if (poNumberStatus != null && 
+            (poNumberStatus.equalsIgnoreCase("Pending Addition") || 
+             poNumberStatus.equalsIgnoreCase("Pending Deletion") || 
+             poNumberStatus.equalsIgnoreCase("Pending Modification"))) {
+            response.put("status", "Error");
+            response.put("message", "PO number " + poNumber + " is in a pending state (" + 
+                poNumberStatus + ") and cannot be deleted");
+            return response;
+        }
+
+        // 3. Fetch ALL PO items using both methods for reliability
+        List<tb_Po> poItems = poRepo.findByPoNumber(poNumber);
+        if (poItems == null || poItems.isEmpty()) {
+            poItems = poNumberEntry.getPoItems(); // Fallback to relationship
+        }
+
+        if (poItems != null && !poItems.isEmpty()) {
+            for (tb_Po item : poItems) {
+                String itemStatus = item.getApproval_Status();
+                if (itemStatus == null || !itemStatus.equalsIgnoreCase("Approved")) {
+                    response.put("status", "Error");
+                    response.put("message", "Cannot delete PO number " + poNumber + 
+                        " because it contains items with status: " + itemStatus + 
+                        " (All items must be Approved)");
+                    return response;
+                }
+            }
+        }
+
+        // 4. Only proceed if all checks pass
         poNumberEntry.setApprovalStatus("Pending Deletion");
         poNumberRepo.save(poNumberEntry);
-        // Create a new Workflow entry for the deletion request
+
+        // 5. Log the deletion request in Workflow
         Workflow workflow = new Workflow();
         workflow.setPoNumber(poNumber);  
         workflow.setOriginalStatus("Pending Deletion");  
@@ -130,6 +164,7 @@ public Map<String, String> requestDeletePoNum(@PathVariable String poNumber) {
         workflow.setInsertedBy("System");  
         workflow.setInsertDate(new Date()); 
         workflowRepository.save(workflow);
+
         response.put("status", "Success");
         response.put("message", "PO number " + poNumber + " is pending deletion");
     } catch (Exception ex) {
@@ -139,6 +174,8 @@ public Map<String, String> requestDeletePoNum(@PathVariable String poNumber) {
     }
     return response;
 }
+
+
 private String generateProcessId() {
     String timestamp = String.valueOf(System.currentTimeMillis());
     String randomDigit = String.valueOf((int) (Math.random() * 10));
@@ -150,106 +187,108 @@ private String generateProcessId() {
 @PostMapping(value = "/poItems")
 @CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
 public Map<String, String> createPo(@RequestBody String req) throws ParseException {
-        String batchfilename = "";
-        LocalDateTime now = LocalDateTime.now();
-        loggger.info("PO CREATE REQUEST |  " + req);
-        Map<String, String> response = new HashMap<>();
-        try {
-            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd"); // Adjust the pattern as per your date format
-            JSONArray jsonArray = new JSONArray(req);
-            String responseinfo = "Failed to save or data";
+    String batchfilename = "";
+    LocalDateTime now = LocalDateTime.now();
+    logger.info("PO CREATE REQUEST |  " + req);
+    Map<String, String> response = new HashMap<>();
+    try {
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd"); // Adjust the pattern as per your date format
+        JSONArray jsonArray = new JSONArray(req);
+        String responseinfo = "Failed to save or data";
 
-            List<String> validationErrors = new ArrayList<>();
-            for (int i = 0; i < jsonArray.length(); i++) {
-                JSONObject jsonObject = jsonArray.getJSONObject(i);
-                String poNumber = jsonObject.getString("poNumber").trim();
-                // Check if the poNumber exists in tb_PONumber
-                tbPoNumber existsPoNumber = poNumberRepo.findByPoNumber(poNumber);
-                if (existsPoNumber == null) {
-                    validationErrors.add("poNumber does not exist in tb_PONumber: " + poNumber);
-                    continue; // Skip this record
-                }
-       
-                // Create new record in tb_Po
-                tb_Po nwspldt = new tb_Po();
-                nwspldt.setPoNumber(poNumber);
-                nwspldt.setModelNumber(jsonObject.getString("modelNumber"));
-                nwspldt.setUom(jsonObject.getString("uom"));
-                nwspldt.setQtyPerSite(jsonObject.getInt("qtyPerSite"));
-                nwspldt.setTotalNumberOfSites(jsonObject.getInt("totalNumberOfSites"));
-                nwspldt.setTotalQty(jsonObject.getInt("totalQty"));
-                nwspldt.setAccumulatedDepreciation(jsonObject.getDouble("accumulatedDepreciation"));
-                nwspldt.setSalvageValue(jsonObject.getDouble("salvageValue"));
-                nwspldt.setFaCategoryNew(jsonObject.getString("faCategoryNew").trim());
-                nwspldt.setL1(jsonObject.getString("l1"));
-                nwspldt.setL2(jsonObject.getString("l2").trim());
-                nwspldt.setL3(jsonObject.getString("l3").trim());
-                nwspldt.setL4(jsonObject.getString("l4"));
-                nwspldt.setOldFaCategory(jsonObject.getString("oldFaCategory").trim());
-                nwspldt.setAccumulatedDepreciationCode(jsonObject.getString("accumulatedDepreciationCode"));
-                nwspldt.setDepreciationCode(jsonObject.getString("depreciationCode"));
-                nwspldt.setLifeYearsNew(jsonObject.getInt("lifeYearsNew"));
-                nwspldt.setVendorName(jsonObject.getString("vendorName"));
-                nwspldt.setVendorNumber(jsonObject.getString("vendorNumber"));
-                nwspldt.setProjectNumber(jsonObject.getString("projectNumber"));
-                String datePlacedInService = jsonObject.getString("datePlacedInService");
-                String poDate = jsonObject.getString("poDate");
-                try {
-                    java.util.Date parsedDate = dateFormat.parse(datePlacedInService);
-                    java.sql.Date sqlDate = new java.sql.Date(parsedDate.getTime());
-                    java.util.Date newDate = dateFormat.parse(poDate);
-                    java.sql.Date sqlcreatedDate = new java.sql.Date(newDate.getTime());
-                    nwspldt.setDatePlacedInService(sqlDate);
-                    nwspldt.setPoDate(sqlcreatedDate);
-                    nwspldt.setRecordDateTime(new java.sql.Date(System.currentTimeMillis()));
-                } catch (ParseException ex) {
-                    // Correct usage of Level.SEVERE
-                    // Logger.getLogger(APIController.class.getName()).log(Level.SEVERE, null, ex);
-                }
-                nwspldt.setCurrency(jsonObject.getString("currency"));
-                nwspldt.setUnitPrice(jsonObject.getDouble("unitPrice"));
-                nwspldt.setPoLine(jsonObject.getInt("poLine"));
-                nwspldt.setLevel1Description(jsonObject.getString("level1Description"));
-                nwspldt.setPartNumber(jsonObject.getString("partNumber"));
-                nwspldt.setL3Description(jsonObject.getString("level1Description"));
-                nwspldt.setApproval_Status("Pending Addition"); // Set initial status to Pending
-                nwspldt.setCostCenter(jsonObject.getString("costCenter").trim());
-                nwspldt.setCreatedBy(jsonObject.getString("createdBy").trim());
-                try {
-                    poRepo.save(nwspldt);
-                    responseinfo = "Record Created Success";
+        List<String> validationErrors = new ArrayList<>();
+        for (int i = 0; i < jsonArray.length(); i++) {
+            JSONObject jsonObject = jsonArray.getJSONObject(i);
+            String poNumber = jsonObject.getString("poNumber").trim();
+            // Check if the poNumber exists in tb_PONumber
+            tbPoNumber existsPoNumber = poNumberRepo.findByPoNumber(poNumber);
+            if (existsPoNumber == null) {
+                validationErrors.add("poNumber does not exist in tb_PONumber: " + poNumber);
+                continue; // Skip this record
+            }
 
-                    // Create workflow request
-                    Workflow workflow = new Workflow();
-                    workflow.setPoNumber(nwspldt.getPoNumber());
-                    workflow.setOriginalStatus("Pending POItem Addition");
-                    workflow.setProcessId(generateProcessId());
-                    workflow.setInsertedBy("System"); 
-                    workflow.setInsertDate(new Date());
-                    workflowRepository.save(workflow);
-                } catch (Exception excc) {
-                    loggger.info("Exception |  " + excc.toString());
-                    responseinfo = excc.toString();
-                }
+            // Create new record in tb_Po
+            tb_Po nwspldt = new tb_Po();
+            nwspldt.setPoNumber(poNumber);
+            nwspldt.setModelNumber(jsonObject.getString("modelNumber"));
+            nwspldt.setUom(jsonObject.getString("uom"));
+            nwspldt.setQtyPerSite(jsonObject.getInt("qtyPerSite"));
+            nwspldt.setTotalNumberOfSites(jsonObject.getInt("totalNumberOfSites"));
+            nwspldt.setTotalQty(jsonObject.getInt("totalQty"));
+            nwspldt.setAccumulatedDepreciation(jsonObject.getDouble("accumulatedDepreciation"));
+            nwspldt.setSalvageValue(jsonObject.getDouble("salvageValue"));
+            nwspldt.setFaCategoryNew(jsonObject.getString("faCategoryNew").trim());
+            nwspldt.setL1(jsonObject.getString("l1"));
+            nwspldt.setL2(jsonObject.getString("l2").trim());
+            nwspldt.setL3(jsonObject.getString("l3").trim());
+            nwspldt.setL4(jsonObject.getString("l4"));
+            nwspldt.setOldFaCategory(jsonObject.getString("oldFaCategory").trim());
+            nwspldt.setAccumulatedDepreciationCode(jsonObject.getString("accumulatedDepreciationCode"));
+            nwspldt.setDepreciationCode(jsonObject.getString("depreciationCode"));
+            nwspldt.setLifeYearsNew(jsonObject.getInt("lifeYearsNew"));
+            nwspldt.setVendorName(jsonObject.getString("vendorName"));
+            nwspldt.setVendorNumber(jsonObject.getString("vendorNumber"));
+            nwspldt.setProjectNumber(jsonObject.getString("projectNumber"));
+            String datePlacedInService = jsonObject.getString("datePlacedInService");
+            String poDate = jsonObject.getString("poDate");
+            try {
+                java.util.Date parsedDate = dateFormat.parse(datePlacedInService);
+                java.sql.Date sqlDate = new java.sql.Date(parsedDate.getTime());
+                java.util.Date newDate = dateFormat.parse(poDate);
+                java.sql.Date sqlcreatedDate = new java.sql.Date(newDate.getTime());
+                nwspldt.setDatePlacedInService(sqlDate);
+                nwspldt.setPoDate(sqlcreatedDate);
+                nwspldt.setRecordDateTime(new java.sql.Date(System.currentTimeMillis()));
+            } catch (ParseException ex) {
+                logger.error("Error parsing date: ", ex);
             }
-            loggger.info("PO CREATE RESPONSE |  " + responseinfo);
-            loggger.info("VALIDATION RESPONSE |  " + validationErrors);
-            if (!validationErrors.isEmpty()) {
-                batchfilename = getbatchfilename("FailedUpload");
-                helper.logBatchFile(responseinfo, true, batchfilename);
-                return response("Error", "Validation errors: " + String.join(", ", validationErrors));
-            } else if (!responseinfo.contains("Success")) {
-                batchfilename = getbatchfilename("FailedUpload");
-                helper.logBatchFile(responseinfo, true, batchfilename);
-                return response("Error", responseinfo);
-            } else {
-                return response("Success", "Complete");
+            nwspldt.setCurrency(jsonObject.getString("currency"));
+            nwspldt.setUnitPrice(jsonObject.getDouble("unitPrice"));
+            nwspldt.setPoLine(jsonObject.getInt("poLine"));
+            nwspldt.setLevel1Description(jsonObject.getString("level1Description"));
+            nwspldt.setPartNumber(jsonObject.getString("partNumber"));
+            nwspldt.setL3Description(jsonObject.getString("level1Description"));
+            nwspldt.setApproval_Status("Pending Addition"); // Set initial status to Pending
+            nwspldt.setCostCenter(jsonObject.getString("costCenter").trim());
+            nwspldt.setCreatedBy(jsonObject.getString("createdBy").trim());
+
+            try {
+                // Save the PO item
+                poRepo.save(nwspldt);
+                responseinfo = "Record Created Success";
+
+                // Create workflow request
+                Workflow workflow = new Workflow();
+                workflow.setPoNumber(nwspldt.getPoNumber());
+                workflow.setRecordNo(nwspldt.getRecordNo()); // Set the recordNo
+                workflow.setOriginalStatus("Pending POItem Addition");
+                workflow.setProcessId(generateProcessId());
+                workflow.setInsertedBy("System");
+                workflow.setInsertDate(new Date());
+                workflowRepository.save(workflow); // Save the workflow entry
+            } catch (Exception excc) {
+                logger.error("Exception |  " + excc.toString());
+                responseinfo = excc.toString();
             }
-        } catch (NumberFormatException | JSONException exc) {
-            loggger.info("Exception |  " + exc.toString());
-            return response("Error", exc.getMessage());
         }
+        logger.info("PO CREATE RESPONSE |  " + responseinfo);
+        logger.info("VALIDATION RESPONSE |  " + validationErrors);
+        if (!validationErrors.isEmpty()) {
+            batchfilename = getbatchfilename("FailedUpload");
+            helper.logBatchFile(responseinfo, true, batchfilename);
+            return response("Error", "Validation errors: " + String.join(", ", validationErrors));
+        } else if (!responseinfo.contains("Success")) {
+            batchfilename = getbatchfilename("FailedUpload");
+            helper.logBatchFile(responseinfo, true, batchfilename);
+            return response("Error", responseinfo);
+        } else {
+            return response("Success", "Complete");
+        }
+    } catch (NumberFormatException | JSONException exc) {
+        logger.error("Exception |  " + exc.toString());
+        return response("Error", exc.getMessage());
     }
+}
 
 private String getbatchfilename(String filetype) {
     String batchfilename = filetype + "_" + System.currentTimeMillis() + ".json";
@@ -277,17 +316,30 @@ public Map<String, String> requestDeletePoItem(@PathVariable long recordNo) {
             response.put("message", "PO item with recordNo " + recordNo + " does not exist");
             return response;
         }
-        // Update the approval status to "pending deletion"
+
+        // Check if the PO item is in a pending state
+        String currentStatus = poItem.getApproval_Status();
+        if (currentStatus.equals("Pending Addition") || currentStatus.equals("Pending Deletion") || currentStatus.equals("Pending Modification")) {
+            response.put("status", "Error");
+            response.put("message", "PO item with recordNo " + recordNo + " is already in a pending state (" + currentStatus + ") and cannot be requested for deletion");
+            return response;
+        }
+
+        // Update the approval status to "Pending Deletion"
         poItem.setApproval_Status("Pending Deletion");
         poRepo.save(poItem);
+
         // Create a new Workflow entry
         Workflow workflow = new Workflow();
         workflow.setPoNumber(poItem.getPoNumber());
+        workflow.setRecordNo(poItem.getRecordNo()); // Set the recordNo
         workflow.setOriginalStatus("Pending POItem Deletion");
-        workflow.setProcessId(generateProcessId()); 
+        workflow.setProcessId(generateProcessId());
         workflow.setInsertedBy("System"); // or get the current user
         workflow.setInsertDate(new Date());
-        workflowRepository.save(workflow);
+        workflowRepository.save(workflow); // Save the workflow entry
+
+        // Success response in JSON format
         response.put("status", "Success");
         response.put("message", "PO item with recordNo " + recordNo + " is pending deletion");
     } catch (Exception ex) {
@@ -297,7 +349,7 @@ public Map<String, String> requestDeletePoItem(@PathVariable long recordNo) {
     }
     return response;
 }
-// Update Request for poItem
+
 @PutMapping(value = "/poItems/{recordNo}")
 @CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
 public Map<String, String> updatePoItem(@PathVariable long recordNo, @RequestBody String req) {
@@ -309,12 +361,23 @@ public Map<String, String> updatePoItem(@PathVariable long recordNo, @RequestBod
         // Fetch the existing PO record
         tb_Po existingPo = poRepo.findByRecordNo(recordNo);
         if (existingPo == null) {
-            return response("Error", "Record does not exist for recordNo: " + recordNo);
+            response.put("status", "Error");
+            response.put("message", "Record does not exist for recordNo: " + recordNo);
+            return response;
+        }
+        // Check if the PO item is in a pending state
+        String currentStatus = existingPo.getApproval_Status();
+        if (currentStatus.equals("Pending Addition") || currentStatus.equals("Pending Deletion") || currentStatus.equals("Pending Modification")) {
+            response.put("status", "Error");
+            response.put("message", "PO item with recordNo " + recordNo + " is already in a pending state (" + currentStatus + ") and cannot be updated");
+            return response;
         }
         // Ensure the poNumber is not altered
         String poNumber = jsonObject.getString("poNumber").trim();
         if (!existingPo.getPoNumber().equals(poNumber)) {
-            return response("Error", "Cannot alter poNumber for recordNo: " + recordNo);
+            response.put("status", "Error");
+            response.put("message", "Cannot alter poNumber for recordNo: " + recordNo);
+            return response;
         }
         // Create a new tb_Po_Modification entity and populate it with the request data
         tb_Po_Modification modification = new tb_Po_Modification();
@@ -360,26 +423,35 @@ public Map<String, String> updatePoItem(@PathVariable long recordNo, @RequestBod
                 logger.info("Creating workflow entry for PO Number: {}", existingPo.getPoNumber());
                 Workflow workflow = new Workflow();
                 workflow.setPoNumber(modification.getPoNumber());
+                workflow.setRecordNo(modification.getRecordNo()); // Set the recordNo
                 workflow.setOriginalStatus("Pending POItem Modification");
                 workflow.setProcessId(generateProcessId());
-                workflow.setInsertedBy("System"); 
+                workflow.setInsertedBy("System");
                 workflow.setInsertDate(new Date());
-                workflowRepository.save(workflow);
+                workflowRepository.save(workflow); // Save the workflow entry
 
                 logger.info("Workflow entry saved successfully for PO Number: {}", existingPo.getPoNumber());
             } catch (Exception e) {
                 logger.error("Error saving workflow entry: {}", e.getMessage(), e);
-                return response("Error", "Failed to save workflow entry for PO Number: " + existingPo.getPoNumber());
+                response.put("status", "Error");
+                response.put("message", "Failed to save workflow entry for PO Number: " + existingPo.getPoNumber());
+                return response;
             }
             logger.info("Modification request saved for PO Number: {}, Record No: {}", poNumber, recordNo);
-            return response("Success", "Modification request submitted successfully for approval.");
+            response.put("status", "Success");
+            response.put("message", "Modification request submitted successfully for approval.");
+            return response;
         } catch (Exception e) {
             logger.error("Error saving modification request: {}", e.getMessage(), e);
-            return response("Error", "Failed to save modification for recordNo: " + recordNo);
+            response.put("status", "Error");
+            response.put("message", "Failed to save modification for recordNo: " + recordNo);
+            return response;
         }
     } catch (Exception e) {
         logger.error("Exception | {}", e.toString(), e);
-        return response("Error", "Failed to process update request: " + e.getMessage());
+        response.put("status", "Error");
+        response.put("message", "Failed to process update request: " + e.getMessage());
+        return response;
     }
 }
 
@@ -469,30 +541,36 @@ private Map<String, String> processAddition(String poNumber, String action) {
             result.put("message", "PO Number does not exist: " + poNumber);
             return result;
         }
+
         // Check if the approval status is "Pending Addition"
         if (!"Pending Addition".equals(existingPoNumber.getApprovalStatus())) {
             result.put("status", "Error");
             result.put("message", "PO Number is not in 'Pending Addition' status: " + poNumber);
             return result;
         }
+
         // Determine whether to approve or reject based on the action
         if ("approve".equalsIgnoreCase(action)) {
+            // Approve the PO number
             existingPoNumber.setApprovalStatus("Approved");
             result.put("message", "PO number approved.");
             // Update the workflow status
             updateWorkflow(poNumber, "Pending Addition", "Addition Approved", "PO number addition approved.");
+            // Save the updated PO number status
+            poNumberRepo.save(existingPoNumber);
         } else if ("reject".equalsIgnoreCase(action)) {
-            existingPoNumber.setApprovalStatus("Addition Rejected");
-            result.put("message", "PO number rejected.");
+            // Reject the PO number and delete it from the database
+            poNumberRepo.delete(existingPoNumber); // Delete the PO number
+            result.put("message", "PO number rejected and deleted from the database.");
             // Update the workflow status
-            updateWorkflow(poNumber, "Pending Addition", "Addition Rejected", "PO number addition rejected.");
+            updateWorkflow(poNumber, "Pending Addition", "Addition Rejected", "PO number addition rejected and deleted.");
         }
-        // Save the updated PO number status
-        poNumberRepo.save(existingPoNumber);
+
         result.put("status", "Success");
     } catch (Exception ex) {
         result.put("status", "Error");
         result.put("message", "Failed to process addition: " + ex.getMessage());
+        logger.error("Error processing addition for PO Number: " + poNumber, ex);
     }
     return result;
 }
@@ -529,7 +607,7 @@ private Map<String, String> processDeletion(String poNumber, String action) {
             updateWorkflow(poNumber, "Pending Deletion", "Deletion Approved", "PO number deletion approved and removed.");
         } else if ("reject".equalsIgnoreCase(action)) {
             // Reject the deletion request
-            existingPoNumber.setApprovalStatus("Deletion Rejected");
+            existingPoNumber.setApprovalStatus("Approved");
             poNumberRepo.save(existingPoNumber);
             result.put("message", "PO number deletion rejected.");
 
@@ -569,6 +647,8 @@ private void updateWorkflow(String poNumber, String originalStatus, String updat
         logger.warn("No existing workflow found for PO Number: {} with original status: {}", poNumber, originalStatus);
     }
 }
+
+
 
 //Approve Approvals Add, Put, Delete for poItems
 @PostMapping(value = "/poItems/approve")
@@ -654,7 +734,7 @@ private Map<String, String> approveAddition(String poNumber, Long recordNo) {
         poItem.setApproval_Status("Approved");
         poRepo.save(poItem);
         // Update the workflow status
-        updateWorkflow(poNumber, "Pending POItem Addition", "Addition Approved", "PO item addition approved.");
+        updateWorkflow(poNumber, recordNo, "Pending POItem Addition", "Addition Approved", "PO item addition approved.");
         result.put("status", "Success");
         result.put("message", "PO item addition approved.");
     } catch (Exception ex) {
@@ -721,7 +801,7 @@ private Map<String, String> approveModification(String poNumber, Long recordNo) 
         // Save the updated PO item
         poRepo.save(poItem);
         // Update the workflow status
-        updateWorkflow(poNumber, "Pending POItem Modification", "Modification Approved", "PO item modification approved.");
+        updateWorkflow(poNumber, recordNo, "Pending POItem Modification", "Modification Approved", "PO item modification approved.");
         // Delete the modification request
         poModificationRepo.delete(modification);
         result.put("status", "Success");
@@ -753,7 +833,7 @@ private Map<String, String> approveDeletion(String poNumber, Long recordNo) {
         // Approve the deletion
         poRepo.delete(poItem);
         // Update the workflow status
-        updateWorkflow(poNumber, "Pending POItem Deletion", "Deletion Approved", "PO item deletion approved.");
+        updateWorkflow(poNumber, recordNo, "Pending POItem Deletion", "Deletion Approved", "PO item deletion approved.");
         result.put("status", "Success");
         result.put("message", "PO item deletion approved.");
     } catch (Exception ex) {
@@ -830,7 +910,6 @@ private Map<String, String> processSinglePoItemReject(String poNumber, Long reco
     }
     return result;
 }
-
 private Map<String, String> rejectAddition(String poNumber, Long recordNo) {
     Map<String, String> result = new HashMap<>();
     result.put("poNumber", poNumber);
@@ -850,10 +929,9 @@ private Map<String, String> rejectAddition(String poNumber, Long recordNo) {
             return result;
         }
         // Reject the PO item
-        poItem.setApproval_Status("Addition Rejected");
-        poRepo.save(poItem);
+        poRepo.delete(poItem);
         // Update the workflow status
-        updateWorkflow(poNumber, "Pending POItem Addition", "Addition Rejected", "PO item addition rejected.");
+        updateWorkflow(poNumber, recordNo, "Pending POItem Addition", "Addition Rejected", "PO item addition rejected.");
         result.put("status", "Success");
         result.put("message", "PO item addition rejected.");
     } catch (Exception ex) {
@@ -891,7 +969,7 @@ private Map<String, String> rejectModification(String poNumber, Long recordNo) {
         poItem.setApproval_Status("Approved");
         poRepo.save(poItem);
         // Update the workflow status
-        updateWorkflow(poNumber, "Pending POItem Modification", "Modification Rejected", "PO item modification rejected.");
+        updateWorkflow(poNumber, recordNo, "Pending POItem Modification", "Modification Rejected", "PO item modification rejected.");
         // Delete the modification request
         poModificationRepo.delete(modification);
         result.put("status", "Success");
@@ -921,10 +999,10 @@ private Map<String, String> rejectDeletion(String poNumber, Long recordNo) {
             return result;
         }
         // Reject the deletion
-        poItem.setApproval_Status("Deletion Rejected");
+        poItem.setApproval_Status("Approved");
         poRepo.save(poItem);
         // Update the workflow status
-        updateWorkflow(poNumber, "Pending POItem Deletion", "Deletion Rejected", "PO item deletion rejected.");
+        updateWorkflow(poNumber, recordNo, "Pending POItem Deletion", "Deletion Rejected", "PO item deletion rejected.");
         result.put("status", "Success");
         result.put("message", "PO item deletion rejected.");
     } catch (Exception ex) {
@@ -934,6 +1012,32 @@ private Map<String, String> rejectDeletion(String poNumber, Long recordNo) {
     return result;
 }
 
+private void updateWorkflow(String poNumber, Long recordNo, String originalStatus, String updatedStatus, String comments) {
+    try {
+        // Fetch the existing workflow entry
+        Workflow workflow = workflowRepository.findByPoNumberAndRecordNoAndOriginalStatus(poNumber, recordNo, originalStatus);
 
+        if (workflow == null) {
+            // If no existing entry is found, create a new one
+            workflow = new Workflow();
+            workflow.setPoNumber(poNumber);
+            workflow.setRecordNo(recordNo);
+            workflow.setOriginalStatus(originalStatus);
+            workflow.setProcessId(generateProcessId());
+            workflow.setInsertedBy("System");
+            workflow.setInsertDate(new Date());
+        }
+
+        // Update the workflow entry
+        workflow.setUpdatedStatus(updatedStatus);
+        workflow.setComments(comments);
+        workflow.setChangedBy("System");
+        workflow.setChangeDate(new Date());
+        workflowRepository.save(workflow); // Save or update the workflow entry
+
+    } catch (Exception ex) {
+        logger.error("Failed to update workflow for PO Number: {} and Record No: {}", poNumber, recordNo, ex);
+    }
+}
 
 }

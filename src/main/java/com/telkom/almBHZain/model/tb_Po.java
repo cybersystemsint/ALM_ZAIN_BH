@@ -69,6 +69,7 @@ public class tb_Po implements Serializable {
     @ManyToOne
     @JoinColumn(name = "poNumber", referencedColumnName = "poNumber", insertable = false, updatable = false)
     private tbPoNumber poNumberEntity;
+    
 
     public tbPoNumber getPoNumberEntity() {
         return poNumberEntity;

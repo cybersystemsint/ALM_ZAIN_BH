@@ -21,7 +21,8 @@ public interface tbPoRepo extends JpaRepository<tb_Po, Long> {
     List<tb_Po> findByPoNumberAndVendorNumber(String poId, String supplierId);
 
     List<tb_Po> findAllByPoNumber(String PoNumber);
-    tb_Po findByPoNumber(String poNumber); 
+    List<tb_Po> findByPoNumber(String poNumber); 
+    // tb_Po findByPoNumber(String poNumber); 
     tb_Po findByRecordNo(long recordNo);
     // New method using poNumberEntity relationship
     List<tb_Po> findByPoNumberEntity_PoNumber(String poNumber);
