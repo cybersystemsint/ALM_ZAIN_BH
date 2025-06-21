@@ -1,10 +1,9 @@
 package com.telkom.almBHZain.helper;
 
 
-import com.telkom.almBHZain.controller.APIController;
-import org.springframework.stereotype.Controller;
-
-import java.io.*;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
@@ -16,10 +15,11 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Date;
-import java.util.List;
+
+import org.springframework.stereotype.Controller;
+
+// import org.springframework.stereotype.Controller;
 
 @Controller
 public class helper {

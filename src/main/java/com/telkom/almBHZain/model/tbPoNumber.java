@@ -19,10 +19,6 @@ import javax.persistence.Table;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
-/**
- *
- * @author jgithu
- */
 @Entity
 @Table(name = "tb_PONumber")
 public class tbPoNumber implements Serializable {

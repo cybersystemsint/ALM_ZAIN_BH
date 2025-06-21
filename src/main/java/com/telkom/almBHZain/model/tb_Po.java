@@ -16,12 +16,7 @@ import javax.persistence.ManyToOne;
 import javax.persistence.Table;
 
 
-/**
- *
- * @author jgithu
- */
-//  `updatedBy` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
-//  `updatedDatetime` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
+
 @Entity
 @Table(name = "tb_Po")
 public class tb_Po implements Serializable {
