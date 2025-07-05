@@ -8,7 +8,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.logging.log4j.LogManager;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -27,8 +26,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.telkom.almBHZain.model.Workflow;
-  import com.telkom.almBHZain.model.tbPoNumber;
-import com.telkom.almBHZain.model.tb_Po;
+import com.telkom.almBHZain.model.tbPoNumber;
+  import com.telkom.almBHZain.model.tb_Po;
 import com.telkom.almBHZain.model.tb_Po_Modification;
 import com.telkom.almBHZain.repo.WorkflowRepository;
 import com.telkom.almBHZain.repo.tbPoNumberRepo;
@@ -40,7 +39,7 @@ import com.telkom.almBHZain.response.BulkPoItemResult;
 @CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
 public class BahrainController {
 
-    private final org.apache.logging.log4j.Logger loggger = LogManager.getLogger(BahrainController.class);
+    // private final org.apache.logging.log4j.Logger loggger = LogManager.getLogger(BahrainController.class);
     private static final Logger logger = LoggerFactory.getLogger(BahrainController.class);
  
     @Autowired
@@ -56,7 +55,7 @@ public class BahrainController {
 //addition request of poNumber if it doesnt already exist
 @PostMapping(value = "/poNumbers")
 public ResponseEntity<Map<String, String>> createPONumber(@RequestBody String req) {
-    loggger.info("PO NUMBER CREATE REQUEST |  " + req);
+    logger.info("PO NUMBER CREATE REQUEST |  " + req);
     List<String> createdPoNumbers = new ArrayList<>();
     List<String> validationErrors = new ArrayList<>();
 
@@ -91,7 +90,7 @@ public ResponseEntity<Map<String, String>> createPONumber(@RequestBody String re
                 workflow.setInsertDate(new Date());
                 workflowRepository.save(workflow);
             } catch (Exception ex) {
-                loggger.info("Exception while saving | " + ex.toString());
+                logger.info("Exception while saving | " + ex.toString());
                 validationErrors.add("Failed to save: " + poNumber);
             }
         }
@@ -102,7 +101,7 @@ public ResponseEntity<Map<String, String>> createPONumber(@RequestBody String re
             return response("Success", "Created PO number: " + String.join(", ", createdPoNumbers));
         }
     } catch (JSONException exc) {
-        loggger.info("JSONException | " + exc.toString());
+        logger.info("JSONException | " + exc.toString());
         return response("Error", exc.getMessage());
     }
 }
@@ -182,120 +181,11 @@ private String generateProcessId() {
     return timestamp.substring(timestamp.length() - 6) + randomDigit;
 }
 
-//addition request of poItem
-// @PostMapping(value = "/poItems")
-// @CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
-// public Map<String, String> createPo(@RequestBody String req) throws ParseException {
-//     String batchfilename = "";
-//     LocalDateTime now = LocalDateTime.now();
-//     logger.info("PO CREATE REQUEST |  " + req);
-//     Map<String, String> response = new HashMap<>();
-//     try {
-//         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd"); // Adjust the pattern as per your date format
-//         JSONArray jsonArray = new JSONArray(req);
-//         String responseinfo = "Failed to save or data";
-
-//         List<String> validationErrors = new ArrayList<>();
-//         for (int i = 0; i < jsonArray.length(); i++) {
-//             JSONObject jsonObject = jsonArray.getJSONObject(i);
-//             String poNumber = jsonObject.getString("poNumber").trim();
-//             // Check if the poNumber exists in tb_PONumber
-//             tbPoNumber existsPoNumber = poNumberRepo.findByPoNumber(poNumber);
-//             if (existsPoNumber == null) {
-//                 validationErrors.add("poNumber does not exist in tb_PONumber: " + poNumber);
-//                 continue; // Skip this record
-//             }
-
-//             // Create new record in tb_Po
-//             tb_Po nwspldt = new tb_Po();
-//             nwspldt.setPoNumber(poNumber);
-//             nwspldt.setModelNumber(jsonObject.getString("modelNumber"));
-//             nwspldt.setUom(jsonObject.getString("uom"));
-//             nwspldt.setQtyPerSite(jsonObject.getInt("qtyPerSite"));
-//             nwspldt.setTotalNumberOfSites(jsonObject.getInt("totalNumberOfSites"));
-//             nwspldt.setTotalQty(jsonObject.getInt("totalQty"));
-//             nwspldt.setAccumulatedDepreciation(jsonObject.getDouble("accumulatedDepreciation"));
-//             nwspldt.setSalvageValue(jsonObject.getDouble("salvageValue"));
-//             nwspldt.setFaCategoryNew(jsonObject.getString("faCategoryNew").trim());
-//             nwspldt.setL1(jsonObject.getString("l1"));
-//             nwspldt.setL2(jsonObject.getString("l2").trim());
-//             nwspldt.setL3(jsonObject.getString("l3").trim());
-//             nwspldt.setL4(jsonObject.getString("l4"));
-//             nwspldt.setOldFaCategory(jsonObject.getString("oldFaCategory").trim());
-//             nwspldt.setAccumulatedDepreciationCode(jsonObject.getString("accumulatedDepreciationCode"));
-//             nwspldt.setDepreciationCode(jsonObject.getString("depreciationCode"));
-//             nwspldt.setLifeYearsNew(jsonObject.getInt("lifeYearsNew"));
-//             nwspldt.setVendorName(jsonObject.getString("vendorName"));
-//             nwspldt.setVendorNumber(jsonObject.getString("vendorNumber"));
-//             nwspldt.setProjectNumber(jsonObject.getString("projectNumber"));
-//             String datePlacedInService = jsonObject.getString("datePlacedInService");
-//             String poDate = jsonObject.getString("poDate");
-//             try {
-//                 java.util.Date parsedDate = dateFormat.parse(datePlacedInService);
-//                 java.sql.Date sqlDate = new java.sql.Date(parsedDate.getTime());
-//                 java.util.Date newDate = dateFormat.parse(poDate);
-//                 java.sql.Date sqlcreatedDate = new java.sql.Date(newDate.getTime());
-//                 nwspldt.setDatePlacedInService(sqlDate);
-//                 nwspldt.setPoDate(sqlcreatedDate);
-//                 nwspldt.setRecordDateTime(new java.sql.Date(System.currentTimeMillis()));
-//             } catch (ParseException ex) {
-//                 logger.error("Error parsing date: ", ex);
-//             }
-//             nwspldt.setCurrency(jsonObject.getString("currency"));
-//             nwspldt.setUnitPrice(jsonObject.getDouble("unitPrice"));
-//             nwspldt.setPoLine(jsonObject.getInt("poLine"));
-//             nwspldt.setLevel1Description(jsonObject.getString("level1Description"));
-//             nwspldt.setPartNumber(jsonObject.getString("partNumber"));
-//             nwspldt.setL3Description(jsonObject.getString("level1Description"));
-//             nwspldt.setApproval_Status("Pending Addition"); // Set initial status to Pending
-//             nwspldt.setCostCenter(jsonObject.getString("costCenter").trim());
-//             nwspldt.setCreatedBy(jsonObject.getString("createdBy").trim());
-
-//             try {
-//                 // Save the PO item
-//                 poRepo.save(nwspldt);
-//                 responseinfo = "Record Created Success";
-
-//                 // Create workflow request
-//                 Workflow workflow = new Workflow();
-//                 workflow.setPoNumber(nwspldt.getPoNumber());
-//                 workflow.setRecordNo(nwspldt.getRecordNo()); // Set the recordNo
-//                 workflow.setOriginalStatus("Pending POItem Addition");
-//                 workflow.setProcessId(generateProcessId());
-//                 workflow.setInsertedBy("System");
-//                 workflow.setInsertDate(new Date());
-//                 workflowRepository.save(workflow); // Save the workflow entry
-//             } catch (Exception excc) {
-//                 logger.error("Exception |  " + excc.toString());
-//                 responseinfo = excc.toString();
-//             }
-//         }
-//         logger.info("PO CREATE RESPONSE |  " + responseinfo);
-//         logger.info("VALIDATION RESPONSE |  " + validationErrors);
-//         if (!validationErrors.isEmpty()) {
-//             batchfilename = getbatchfilename("FailedUpload");
-//             helper.logBatchFile(responseinfo, true, batchfilename);
-//             return response("Error", "Validation errors: " + String.join(", ", validationErrors));
-//         } else if (!responseinfo.contains("Success")) {
-//             batchfilename = getbatchfilename("FailedUpload");
-//             helper.logBatchFile(responseinfo, true, batchfilename);
-//             return response("Error", responseinfo);
-//         } else {
-//             return response("Success", "Complete");
-//         }
-//     } catch (NumberFormatException | JSONException exc) {
-//         logger.error("Exception |  " + exc.toString());
-//         return response("Error", exc.getMessage());
-//     }
-// }
 
 private String getbatchfilename(String filetype) {
     String batchfilename = filetype + "_" + System.currentTimeMillis() + ".json";
     return batchfilename;
 }
-
-
-
 
 
 @PostMapping(value = "/poItems", produces = "application/json")
@@ -561,21 +451,53 @@ public Map<String, String> updatePoItem(@PathVariable long recordNo, @RequestBod
 }
 
  
-     @PostMapping(value = "/poNumbers/approve")
-     @CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
-     @Transactional
-     public Map<String, Object> approvePoNumber(@RequestBody Map<String, Object> requestBody) {
-         logger.info("APPROVE PO NUMBER REQUEST | Request Body: " + requestBody);
-         return processWorkflowAction(requestBody, "approve");
-     }
+@PostMapping(value = "/poNumbers/approve")
+@CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
+@Transactional
+public Map<String, Object> approvePoNumber(@RequestBody Map<String, Object> requestBody) {
+    logger.info("Approve PO Number request | Request Body: " + requestBody);
+    try {
+        return processWorkflowAction(requestBody, "approve");
+    } catch (IllegalArgumentException e) {
+        logger.warn("Bad request in approvePoNumber: {}", e.getMessage());
+        Map<String, Object> error = new HashMap<>();
+        error.put("status", "Error");
+        error.put("message", e.getMessage());
+        error.put("errorType", "IllegalArgumentException");
+        return error;
+    } catch (Exception e) {
+        logger.error("Unexpected error in approvePoNumber", e);
+        Map<String, Object> error = new HashMap<>();
+        error.put("status", "Error");
+        error.put("message", "Internal server error: " + e.getMessage());
+        error.put("errorType", e.getClass().getSimpleName());
+        return error;
+    }
+}
 
-     @PostMapping(value = "/poNumbers/reject")
-     @CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
-     @Transactional
-     public Map<String, Object> rejectPoNumber(@RequestBody Map<String, Object> requestBody) {
-         logger.info("REJECT PO NUMBER REQUEST | Request Body: " + requestBody);
-         return processWorkflowAction(requestBody, "reject");
-     }
+@PostMapping(value = "/poNumbers/reject")
+@CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
+@Transactional
+public Map<String, Object> rejectPoNumber(@RequestBody Map<String, Object> requestBody) {
+    logger.info("Reject PO Number Request | Request Body: " + requestBody);
+    try {
+        return processWorkflowAction(requestBody, "reject");
+    } catch (IllegalArgumentException e) {
+        logger.warn("Bad request in rejectPoNumber: {}", e.getMessage());
+        Map<String, Object> error = new HashMap<>();
+        error.put("status", "Error");
+        error.put("message", e.getMessage());
+        error.put("errorType", "IllegalArgumentException");
+        return error;
+    } catch (Exception e) {
+        logger.error("Unexpected error in rejectPoNumber", e);
+        Map<String, Object> error = new HashMap<>();
+        error.put("status", "Error");
+        error.put("message", "Internal server error: " + e.getMessage());
+        error.put("errorType", e.getClass().getSimpleName());
+        return error;
+    }
+}
     
      private Map<String, Object> processWorkflowAction(Map<String, Object> requestBody, String action) {
         Map<String, Object> response = new HashMap<>();
@@ -759,33 +681,55 @@ private void updateWorkflow(String poNumber, String originalStatus, String updat
 @PostMapping(value = "/poItems/approve")
 @CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
 @Transactional
-public Map<String, Object> approvePoItems(@RequestBody Map<String, Object> requestBody) {
-    logger.info("APPROVE PO ITEMS REQUEST | Request Body: " + requestBody);
+public ResponseEntity<Map<String, Object>> approvePoItems(@RequestBody Map<String, Object> requestBody) {
+    logger.info("Approve PO Items request | Request Body: {}", requestBody); // log incoming request
+
     Map<String, Object> response = new HashMap<>();
     List<Map<String, String>> results = new ArrayList<>();
-    // Extract selected rows and request type from the request body
     List<Map<String, Object>> selectedRows = (List<Map<String, Object>>) requestBody.get("selectedRows");
     String requestType = (String) requestBody.get("requestType");
-    // Validate the request
+
     if (selectedRows == null || selectedRows.isEmpty()) {
+        logger.warn("No rows selected in approvePoItems request.");
         response.put("status", "Error");
         response.put("message", "No rows selected.");
-        return response;
+        return ResponseEntity.badRequest().body(response);
     }
     if (!"addition".equalsIgnoreCase(requestType) && !"modification".equalsIgnoreCase(requestType) && !"deletion".equalsIgnoreCase(requestType)) {
+        logger.warn("Invalid request type: {}", requestType);
         response.put("status", "Error");
         response.put("message", "Invalid request type: " + requestType);
-        return response;
+        return ResponseEntity.badRequest().body(response);
     }
-    // Process each selected row
+
+    boolean hasErrors = false;
     for (Map<String, Object> row : selectedRows) {
-        String poNumber = (String) row.get("poNumber");
-        Long recordNo = row.get("recordNo") != null ? Long.parseLong(row.get("recordNo").toString()) : null;
-        Map<String, String> result = processSinglePoItemApprove(poNumber, recordNo, requestType);
+        Map<String, String> result = new HashMap<>();
+        try {
+            String poNumber = (String) row.get("poNumber");
+            if (poNumber == null || poNumber.isEmpty()) throw new IllegalArgumentException("Missing poNumber");
+            Long recordNo = row.get("recordNo") != null ? Long.parseLong(row.get("recordNo").toString()) : null;
+            Map<String, String> approveResult = processSinglePoItemApprove(poNumber, recordNo, requestType);
+            result.putAll(approveResult);
+            result.put("status", "Success");
+        } catch (Exception e) {
+            hasErrors = true;
+            logger.error("Error processing row {}: {}", row, e.getMessage());
+            result.put("status", "Error");
+            result.put("message", e.getMessage());
+        }
         results.add(result);
     }
     response.put("results", results);
-    return response;
+    if (hasErrors) {
+        logger.warn("Partial failure in approvePoItems. Some items failed.");
+        response.put("status", "PartialFailure");
+        return ResponseEntity.status(207).body(response); // 207 Multi-Status
+    } else {
+        logger.info("All PO items approved successfully.");
+        response.put("status", "Success");
+        return ResponseEntity.ok(response);
+    }
 }
 
 private Map<String, String> processSinglePoItemApprove(String poNumber, Long recordNo, String requestType) {
@@ -950,40 +894,60 @@ private Map<String, String> approveDeletion(String poNumber, Long recordNo) {
 
 // rejection Approval for Add, Put, Delete for poItems
 @PostMapping(value = "/poItems/reject")
-@CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
+@CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600) // Replace * with your frontend domain(s) in production!
 @Transactional
-public Map<String, Object> rejectPoItems(@RequestBody Map<String, Object> requestBody) {
-    logger.info("REJECT PO ITEMS REQUEST | Request Body: " + requestBody);
+public ResponseEntity<Map<String, Object>> rejectPoItems(@RequestBody Map<String, Object> requestBody) {
+    logger.info("Reject PO Items request | Request Body: {}", requestBody);
+
     Map<String, Object> response = new HashMap<>();
     List<Map<String, String>> results = new ArrayList<>();
 
-    // Extract selected rows and request type from the request body
     List<Map<String, Object>> selectedRows = (List<Map<String, Object>>) requestBody.get("selectedRows");
     String requestType = (String) requestBody.get("requestType");
 
     // Validate the request
     if (selectedRows == null || selectedRows.isEmpty()) {
+        logger.warn("No rows selected in rejectPoItems request.");
         response.put("status", "Error");
         response.put("message", "No rows selected.");
-        return response;
+        return ResponseEntity.badRequest().body(response);
     }
     if (!"addition".equalsIgnoreCase(requestType) && !"modification".equalsIgnoreCase(requestType) && !"deletion".equalsIgnoreCase(requestType)) {
+        logger.warn("Invalid request type in rejectPoItems: {}", requestType);
         response.put("status", "Error");
         response.put("message", "Invalid request type: " + requestType);
-        return response;
+        return ResponseEntity.badRequest().body(response);
     }
 
-    // Process each selected row
+    boolean hasErrors = false;
     for (Map<String, Object> row : selectedRows) {
-        String poNumber = (String) row.get("poNumber");
-        Long recordNo = row.get("recordNo") != null ? Long.parseLong(row.get("recordNo").toString()) : null;
-
-        Map<String, String> result = processSinglePoItemReject(poNumber, recordNo, requestType);
+        Map<String, String> result = new HashMap<>();
+        try {
+            String poNumber = (String) row.get("poNumber");
+            if (poNumber == null || poNumber.isEmpty()) throw new IllegalArgumentException("Missing poNumber");
+            Long recordNo = row.get("recordNo") != null ? Long.parseLong(row.get("recordNo").toString()) : null;
+            Map<String, String> rejectResult = processSinglePoItemReject(poNumber, recordNo, requestType);
+            result.putAll(rejectResult);
+            result.put("status", "Success");
+        } catch (Exception e) {
+            hasErrors = true;
+            logger.error("Error processing row in rejectPoItems: {} | Exception: {}", row, e.getMessage());
+            result.put("status", "Error");
+            result.put("message", e.getMessage());
+        }
         results.add(result);
     }
 
     response.put("results", results);
-    return response;
+    if (hasErrors) {
+        logger.warn("Partial failure in rejectPoItems. Some items failed.");
+        response.put("status", "PartialFailure");
+        return ResponseEntity.status(207).body(response); // 207 Multi-Status
+    } else {
+        logger.info("All PO items rejected successfully.");
+        response.put("status", "Success");
+        return ResponseEntity.ok(response);
+    }
 }
 
 private Map<String, String> processSinglePoItemReject(String poNumber, Long recordNo, String requestType) {

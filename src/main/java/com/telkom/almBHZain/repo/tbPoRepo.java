@@ -1,7 +1,4 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
+
 package com.telkom.almBHZain.repo;
 
 import java.util.List;
@@ -14,10 +11,6 @@ import org.springframework.data.repository.query.Param;
 
 import com.telkom.almBHZain.model.tb_Po;
 
-/**
- *
- * @author jgithu
- */
 public interface tbPoRepo extends JpaRepository<tb_Po, Long> {
 
     List<tb_Po> findByPoNumberAndVendorNumber(String poId, String supplierId);
@@ -42,7 +35,67 @@ public interface tbPoRepo extends JpaRepository<tb_Po, Long> {
     
     boolean existsByModelNumber(String modelNumber);
 
-// In PoRepository
+   // Fetch all PO items for a list of poNumbers (for grouping)
+    List<tb_Po> findByPoNumberIn(List<String> poNumbers);
+
+    // Distinct poNumbers (all)
+    @Query("SELECT DISTINCT p.poNumber FROM tb_Po p")
+    Page<String> findDistinctPoNumbers(Pageable pageable);
+
+    // Distinct poNumbers, filtered by supplier
+    @Query("SELECT DISTINCT p.poNumber FROM tb_Po p WHERE p.vendorNumber = :supplierId")
+    Page<String> findDistinctPoNumbersBySupplier(@Param("supplierId") String supplierId, Pageable pageable);
+
+    // Distinct poNumbers, filtered by searchTerm
+@Query("SELECT DISTINCT p.poNumber FROM tb_Po p WHERE " +
+       "(:searchTerm IS NULL OR " +
+       "LOWER(p.poNumber) LIKE :searchTerm OR " +
+       "LOWER(p.modelNumber) LIKE :searchTerm OR " +
+       "LOWER(p.uom) LIKE :searchTerm OR " +
+       "CAST(p.qtyPerSite AS string) LIKE :searchTerm OR " +
+       "CAST(p.totalNumberOfSites AS string) LIKE :searchTerm OR " +
+       "CAST(p.totalQty AS string) LIKE :searchTerm OR " +
+       "CAST(p.accumulatedDepreciation AS string) LIKE :searchTerm OR " +
+       "CAST(p.salvageValue AS string) LIKE :searchTerm OR " +
+       "LOWER(p.faCategoryNew) LIKE :searchTerm OR " +
+       "LOWER(p.L1) LIKE :searchTerm OR " +
+       "LOWER(p.L2) LIKE :searchTerm OR " +
+       "LOWER(p.L3) LIKE :searchTerm OR " +
+       "LOWER(p.L4) LIKE :searchTerm OR " +
+       "LOWER(p.oldFaCategory) LIKE :searchTerm OR " +
+       "LOWER(p.accumulatedDepreciationCode) LIKE :searchTerm OR " +
+       "LOWER(p.depreciationCode) LIKE :searchTerm OR " +
+       "CAST(p.lifeYearsNew AS string) LIKE :searchTerm OR " +
+       "LOWER(p.vendorName) LIKE :searchTerm OR " +
+       "LOWER(p.vendorNumber) LIKE :searchTerm OR " +
+       "LOWER(p.projectNumber) LIKE :searchTerm OR " +
+       "CAST(p.datePlacedInService AS string) LIKE :searchTerm OR " +
+       "CAST(p.poDate AS string) LIKE :searchTerm OR " +
+       "LOWER(p.currency) LIKE :searchTerm OR " +
+       "CAST(p.unitPrice AS string) LIKE :searchTerm OR " +
+       "CAST(p.poLine AS string) LIKE :searchTerm OR " +
+       "LOWER(p.Level1Description) LIKE :searchTerm OR " +
+       "LOWER(p.partNumber) LIKE :searchTerm OR " +
+       "LOWER(p.l3Description) LIKE :searchTerm OR " +
+       "LOWER(p.costCenter) LIKE :searchTerm OR " +
+       "LOWER(p.Approval_Status) LIKE :searchTerm OR " +
+       "LOWER(p.createdBy) LIKE :searchTerm OR " +
+       "CAST(p.createdDateTime AS string) LIKE :searchTerm OR " +
+       "LOWER(p.updatedBy) LIKE :searchTerm OR " +
+       "CAST(p.updatedDatetime AS string) LIKE :searchTerm " +
+       ")")
+Page<String> findDistinctPoNumbersBySearch(@Param("searchTerm") String searchTerm, Pageable pageable);
+
+    // Distinct poNumbers, filtered by supplier and searchTerm
+    @Query("SELECT DISTINCT p.poNumber FROM tb_Po p WHERE p.vendorNumber = :supplierId AND (" +
+           "LOWER(p.poNumber) LIKE :searchTerm OR " +
+           "LOWER(p.modelNumber) LIKE :searchTerm OR " +
+           "LOWER(p.vendorName) LIKE :searchTerm OR " +
+           "LOWER(p.Approval_Status) LIKE :searchTerm)")
+    Page<String> findDistinctPoNumbersBySupplierAndSearch(@Param("supplierId") String supplierId,
+                                                          @Param("searchTerm") String searchTerm,
+                                                          Pageable pageable);
+
 tb_Po findByPoNumberAndPoLine(String poNumber, int poLine);
 
      // Offset search: all string columns + supplierId filter

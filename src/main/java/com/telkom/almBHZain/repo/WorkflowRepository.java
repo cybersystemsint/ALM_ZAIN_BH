@@ -11,8 +11,8 @@ import org.springframework.stereotype.Repository;
 import com.telkom.almBHZain.model.Workflow;
 
 @Repository
-public interface WorkflowRepository extends JpaRepository<Workflow, Long> {
-
+public interface WorkflowRepository extends JpaRepository<Workflow, Long>, WorkflowRepositoryCustom {
+  
     List<Workflow> findByPoNumber(String poNumber);
     Workflow findByPoNumberAndProcessId(String poNumber, String processId);
     public Workflow findTopByPoNumberOrderByInsertDateDesc(String poNumber);
@@ -27,7 +27,8 @@ public interface WorkflowRepository extends JpaRepository<Workflow, Long> {
 
     List<Workflow> findByUpdatedStatusIsNotNull();
 
-     // Offset search
+    
+//      // Offset search
     @Query("SELECT w FROM Workflow w WHERE " +
            "(:updatedStatusIsNull = true AND w.updatedStatus IS NULL OR :updatedStatusIsNull = false AND w.updatedStatus IS NOT NULL) AND (" +
            ":searchTerm IS NULL OR " +
@@ -66,4 +67,17 @@ public interface WorkflowRepository extends JpaRepository<Workflow, Long> {
             @Param("searchTerm") String searchTerm,
             @Param("afterId") Long afterId,
             Pageable pageable);
+
+
+    @Query("SELECT w FROM Workflow w WHERE (:updatedStatusIsNull = TRUE AND w.updatedStatus IS NULL) OR (:updatedStatusIsNull = FALSE AND w.updatedStatus IS NOT NULL)")
+    Page<Workflow> findAllByUpdatedStatusIsNullOrNot(@Param("updatedStatusIsNull") boolean updatedStatusIsNull, Pageable pageable);
+
+
+    // Keyset pagination
+    @Query("SELECT w FROM Workflow w WHERE ((:updatedStatusIsNull = TRUE AND w.updatedStatus IS NULL) OR (:updatedStatusIsNull = FALSE AND w.updatedStatus IS NOT NULL)) AND w.id < :afterId")
+    Page<Workflow> findAfterId(@Param("updatedStatusIsNull") boolean updatedStatusIsNull,
+                               @Param("afterId") Long afterId,
+                               Pageable pageable);
+
+
 }
