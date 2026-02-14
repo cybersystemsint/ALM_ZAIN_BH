@@ -10,15 +10,15 @@
         </encoder>
         <file>${LOG_FILE}</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-             daily rollover 
             <fileNamePattern>${LOG_FILE}-.%d{yyyy-MM-dd}</fileNamePattern>
         </rollingPolicy>
     </appender>
-    <root level="INFO">
-        <appender-ref ref="FILE" />
 
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
     </root>
-    
+
+    <logger name="com.zain.bh.alm" level="DEBUG"/>
     <logger name="org.springframework.web" level="INFO"/>
-    
 </configuration> 
