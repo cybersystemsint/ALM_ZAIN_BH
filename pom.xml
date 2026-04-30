@@ -86,6 +86,13 @@
             <artifactId>jackson-dataformat-xml</artifactId>
             <!--            <version>2.11.1</version>-->
         </dependency>
+        <!-- Alibaba EasyExcel for writing Excel files -->
+       <dependency>
+         <groupId>com.alibaba</groupId>
+         <artifactId>easyexcel</artifactId>
+         <version>3.2.1</version>
+       </dependency>
+
         <dependency>
             <groupId>com.jcraft</groupId>
             <artifactId>jsch</artifactId>
@@ -117,6 +124,11 @@
             <artifactId>jjwt-jackson</artifactId>
             <version>0.11.1</version>
         </dependency>
+<dependency>
+  <groupId>com.fasterxml.jackson.datatype</groupId>
+  <artifactId>jackson-datatype-jsr310</artifactId>
+</dependency>
+
 
    <dependency>
 
@@ -142,7 +154,7 @@
                 </configuration> 
             </plugin>
         </plugins>
-        <finalName>${project.artifactId}</finalName>
+       <finalName>alm-zain-bh#po-management</finalName>
     </build>
 
 </project>

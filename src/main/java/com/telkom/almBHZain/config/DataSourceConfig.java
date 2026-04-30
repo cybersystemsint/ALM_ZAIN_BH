@@ -26,7 +26,7 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 @Configuration
 @EnableTransactionManagement
 @EnableJpaRepositories(
-        basePackages = "com.telkom.almBHZain.repo", // MySQL repository package
+        basePackages = "com.telkom.almBHZain.repository", // MySQL repository package
         entityManagerFactoryRef = "mysqlEntityManagerFactory",
         transactionManagerRef = "mysqlTransactionManager"
 )
@@ -37,8 +37,8 @@ public class DataSourceConfig {
     @Bean(name = {"mysqlDataSource", "dataSource"})
     public DataSource mysqlDataSource() {
         return DataSourceBuilder.create()
-                .url("jdbc:mysql://172.22.12.82:3306/ALM_ZAIN_BH")
-                // .url("jdbc:mysql://77.68.67.55:3306/ALM_ZAIN_BH")
+                // .url("jdbc:mysql://172.22.12.82:3306/ALM_ZAIN_BH")
+                .url("jdbc:mysql://77.68.67.55:3306/ALM_ZAIN_BH")
                 .username("root")
                 .password("ALMDev@2025!")
                 .driverClassName("com.mysql.cj.jdbc.Driver")

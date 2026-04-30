@@ -6,6 +6,7 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Table;
+import javax.persistence.Column;
 
 @Entity
 @Table(name = "tb_po_modification")
@@ -44,7 +45,8 @@ public class tb_Po_Modification {
     public String partNumber;
     public String l3Description;
     public String costCenter;
-    public String Approval_Status;
+    @Column(name = "Approval_Status")
+    private String approvalStatus;
     public String createdBy;
     public Date createdDateTime;
     public String updatedBy;
@@ -304,12 +306,12 @@ public class tb_Po_Modification {
         this.costCenter = costCenter;
     }
 
-    public String getApproval_Status() {
-        return Approval_Status;
+    public String getApprovalStatus() {
+        return approvalStatus;
     }
 
-    public void setApproval_Status(String Approval_Status) {
-        this.Approval_Status = Approval_Status;
+    public void setApprovalStatus(String approvalStatus) {
+        this.approvalStatus = approvalStatus;
     }
 
     public String getCreatedBy() {
