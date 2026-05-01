@@ -137,17 +137,14 @@ private PurchaseOrderDto toDto(PurchaseOrder e) {
                     continue;
                 }
 
-                // 2) attempt atomic update (mark pending) using repository method
                 int updatedRows = purchaseOrderRepository.markPendingDeletionIfNotPendingById(id, "Pending Deletion", requestedBy);
                 if (updatedRows == 0) {
-                    // nothing updated -> already pending or changed concurrently
                     entry.put("status", "Error");
                     entry.put("message", "Already in a pending state or cannot be updated");
                     details.add(entry);
                     continue;
                 }
 
-                // insert workflow using the preferred insertedBy (requestedBy -> po.updatedBy -> po.createdBy -> System)
                 String insertedBy = (requestedBy != null)
                         ? requestedBy
                         : (po.getUpdatedBy() != null && !po.getUpdatedBy().trim().isEmpty()

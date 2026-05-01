@@ -50,7 +50,6 @@ public class ExportService {
     private static final SimpleDateFormat DATE_TIME_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     private static final SimpleDateFormat DATE_ONLY_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
 
-    // Column white-lists (DB column names). Adjust to your actual column names.
     private static final String[] PO_COLUMNS = {
             "id", "poNumber", "Approval_Status", "created_by", "created_at"
     };
@@ -69,7 +68,6 @@ public class ExportService {
             "PROCESS_ID", "INSERTEDBY", "INSERTDATE", "CHANGEDBY", "CHANGEDATE", "COMMENTS"
     };
 
-    // Small custom header overrides for particularly common fields
     private static final Map<String, String> CUSTOM_HEADER_MAP;
     static {
         Map<String,String> m = new HashMap<>();
@@ -97,10 +95,8 @@ public class ExportService {
         CUSTOM_HEADER_MAP = Collections.unmodifiableMap(m);
     }
 
-    // Pattern to split camelCase boundaries and letter-digit boundaries
     private static final Pattern CAMEL_SPLIT = Pattern.compile("(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Za-z])(?=[0-9])|_+");
 
-    // Public entry points
 
     public void exportPurchaseOrders(SearchRequest req, OutputStream os, String format) throws IOException {
         String table = "tb_PONumber";
@@ -111,7 +107,6 @@ public class ExportService {
     public void exportPOItems(SearchRequest req, OutputStream os, String format) throws IOException {
         String table = "tb_Po";
         List<String> columns = Arrays.asList(POITEM_COLUMNS);
-        // dateColumns: these should be returned as date-only
         Set<String> dateColumns = new HashSet<>(Arrays.asList("recordDateTime", "datePlacedInService", "poDate", "createdDateTime", "updatedDatetime"));
         exportGeneric(req, table, columns, os, format, dateColumns);
     }
@@ -123,7 +118,6 @@ public class ExportService {
         exportGeneric(req, table, columns, os, format, dateColumns);
     }
 
-    // Generic exporter used by the three above
     private void exportGeneric(SearchRequest req,
                                String table,
                                List<String> allowedColumns,
@@ -131,28 +125,22 @@ public class ExportService {
                                String format,
                                Set<String> dateColumns) throws IOException {
 
-        // Build select list (use exact column names)
         String select = allowedColumns.stream().collect(Collectors.joining(", "));
-        // Build where + params
         List<Object> params = new ArrayList<>();
         String where = buildWhereClauseFromSearchRequest(req, allowedColumns, params);
 
         String sql = "SELECT " + select + " FROM " + table + (where.isEmpty() ? "" : " WHERE " + where);
         logger.info("Streaming export SQL: {}", sql);
 
-        // Excel writer variables
         AtomicInteger currentSheetIndex = new AtomicInteger(0);
         AtomicInteger rowsInCurrentSheet = new AtomicInteger(0);
         AtomicInteger totalRows = new AtomicInteger(0);
 
-        // Prepare formatted headers (human-friendly)
         List<String> formattedHeaderNames = allowedColumns.stream()
                 .map(this::formatHeader)
                 .map(this::capitalizeHeaderWords) 
                 .collect(Collectors.toList());
 
-        // For Excel we write headers as a single header row (EasyExcel expects a List<List<String>>),
-        // so we create one inner list that contains all header names in order.
         List<List<String>> headerForExcel = new ArrayList<>();
         headerForExcel.add(new ArrayList<>(formattedHeaderNames));
 
@@ -160,7 +148,6 @@ public class ExportService {
         try (ExcelWriter excelWriter = "excel".equalsIgnoreCase(format) ? EasyExcel.write(os).build() : null;
              BufferedWriter csvWriter = "csv".equalsIgnoreCase(format) ? new BufferedWriter(new OutputStreamWriter(os, "UTF-8")) : null) {
 
-            // If CSV -> write header line immediately (use formatted headers)
             if (csvWriter != null) {
                 csvWriter.write(formattedHeaderNames.stream()
                         .map(this::escapeCsv)
@@ -176,19 +163,16 @@ public class ExportService {
 
             List<List<Object>> batch = new ArrayList<>(BATCH_SIZE);
 
-            // MySQL: stream results by using fetchSize = Integer.MIN_VALUE
             jdbcTemplate.setFetchSize(Integer.MIN_VALUE);
             jdbcTemplate.query(sql, params.toArray(), (ResultSet rs) -> {
                 try {
                     while (rs.next()) {
                         List<Object> row = new ArrayList<>(allowedColumns.size());
                         for (int i = 0; i < allowedColumns.size(); i++) {
-                            Object val = rs.getObject(i + 1); // JDBC 1-based
-                            // format dates to date-only if configured
+                            Object val = rs.getObject(i + 1); 
                             if (val != null) {
                                 String colName = allowedColumns.get(i);
                                 if (dateColumns.contains(colName) || dateColumns.contains(colName.toUpperCase())) {
-                                    // Accept java.sql.Date or Timestamp
                                     if (val instanceof java.sql.Date) {
                                         val = DATE_ONLY_FORMAT.format((java.sql.Date) val);
                                     } else if (val instanceof java.sql.Timestamp) {
@@ -196,11 +180,9 @@ public class ExportService {
                                     } else if (val instanceof java.util.Date) {
                                         val = DATE_ONLY_FORMAT.format((java.util.Date) val);
                                     } else {
-                                        // fallback: toString
                                         val = val.toString();
                                     }
                                 } else {
-                                    // non-date: if it's a timestamp and we don't want date-only, keep as string full datetime
                                     if (val instanceof java.sql.Timestamp) {
                                         val = DATE_TIME_FORMAT.format(new java.util.Date(((java.sql.Timestamp) val).getTime()));
                                     }
@@ -213,7 +195,6 @@ public class ExportService {
                         rowsInCurrentSheet.incrementAndGet();
                         batch.add(row);
 
-                        // Excel sheet rollover
                         if (excelWriter != null && rowsInCurrentSheet.get() >= MAX_ROWS_PER_SHEET) {
                             if (!batch.isEmpty()) {
                                 excelWriter.write(new ArrayList<>(batch), sheetHolder.sheet);
@@ -225,7 +206,6 @@ public class ExportService {
                             logger.info("Created new sheet {}", sheetHolder.sheet.getSheetName());
                         }
 
-                        // Write batch
                         if (batch.size() >= BATCH_SIZE) {
                             if (excelWriter != null) {
                                 excelWriter.write(new ArrayList<>(batch), sheetHolder.sheet);
@@ -241,7 +221,6 @@ public class ExportService {
                         }
                     }
 
-                    // final batch flush
                     if (!batch.isEmpty()) {
                         if (excelWriter != null) {
                             excelWriter.write(batch, sheetHolder.sheet);
@@ -256,8 +235,7 @@ public class ExportService {
                 return null;
             });
 
-            // after streaming finishes, if excelWriter != null it's closed by try-with-resources,
-            // for CSV we must flush
+
             if (csvWriter != null) {
                 csvWriter.flush();
             }
@@ -295,12 +273,10 @@ public class ExportService {
         String sheetName = String.format("Data_Sheet_%d", sheetIndex + 1);
         WriteSheet sheet = EasyExcel.writerSheet(sheetName).build();
 
-        // Write headers for new sheet (single header row)
         excelWriter.write(headers, sheet);
         return sheet;
     }
 
-// (Replace the existing buildWhereClauseFromSearchRequest method with the following)
 
 private String buildWhereClauseFromSearchRequest(SearchRequest req, List<String> allowedColumns, List<Object> params) {
     if (req == null) return "";
@@ -404,7 +380,6 @@ private String buildWhereClauseFromSearchRequest(SearchRequest req, List<String>
                     }
                     break;
                 default:
-                    // unsupported operator -> skip
             }
         }
     }
@@ -423,18 +398,16 @@ private String normalizeName(String s) {
     private String formatHeader(String column) {
         if (column == null || column.isEmpty()) return "";
 
-        // Check custom override first
         String override = CUSTOM_HEADER_MAP.get(column);
         if (override != null) return override;
 
-        // If column contains underscores, treat as snake_case or DB_UPPER_STYLE
         if (column.contains("_")) {
             String[] parts = column.split("_+");
             List<String> words = new ArrayList<>();
             for (String p : parts) {
                 if (p.isEmpty()) continue;
                 if (isAcronym(p)) {
-                    words.add(p); // keep "PO", "ID"
+                    words.add(p); 
                 } else {
                     words.add(capitalize(p.toLowerCase()));
                 }
@@ -442,14 +415,13 @@ private String normalizeName(String s) {
             return String.join(" ", words);
         }
 
-        // Otherwise split camelCase / PascalCase / letter-digit boundaries
         String spaced = CAMEL_SPLIT.matcher(column).replaceAll(" ");
         String[] tokens = spaced.split("\\s+");
         List<String> words = new ArrayList<>();
         for (String t : tokens) {
             if (t.isEmpty()) continue;
             if (isAcronym(t)) words.add(t);
-            else if (t.matches("\\d+")) words.add(t);           // pure digits (e.g., "3")
+            else if (t.matches("\\d+")) words.add(t);        
             else words.add(capitalize(t));
         }
         return String.join(" ", words);

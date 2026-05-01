@@ -56,7 +56,6 @@ public final class PurchaseOrderSpecification {
                     Path<?> path = root.get(searchColumn);
                     Class<?> javaType = path.getJavaType();
 
-                    // LocalDateTime handling (match by day)
                     if (LocalDateTime.class.isAssignableFrom(javaType)) {
                         try {
                             LocalDate d = LocalDate.parse(query);
@@ -64,17 +63,14 @@ public final class PurchaseOrderSpecification {
                             LocalDateTime end = d.atTime(23,59,59,999_999_999);
                             return cb.between(path.as(LocalDateTime.class), start, end);
                         } catch (DateTimeParseException ex) {
-                            // fall back to string
                         }
                     }
 
-                    // default string match
                     return cb.like(cb.lower(path.as(String.class)), "%" + q + "%");
                 } catch (IllegalArgumentException ex) {
                     return cb.conjunction();
                 }
             } else {
-                // default columns to search (strings)
                 List<Predicate> predicates = new ArrayList<>();
                 try { predicates.add(cb.like(cb.lower(root.get("poNumber").as(String.class)), "%" + q + "%")); } catch (Exception e) {}
                 try { predicates.add(cb.like(cb.lower(root.get("approvalStatus").as(String.class)), "%" + q + "%")); } catch (Exception e) {}
@@ -133,7 +129,6 @@ public final class PurchaseOrderSpecification {
                     }
                 }
 
-                // fallback: string-based filtering
                 switch (op) {
                     case CONTAINS: {
                         String val = safeLower(f.getValue());

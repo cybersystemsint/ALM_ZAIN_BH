@@ -47,7 +47,6 @@ private void setResponseHeaders(HttpServletResponse response, String baseName, S
             ? "text/csv"
             : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
-    // Use ISO-like date and time so filenames are sortable and unique: yyyy-MM-dd_HH-mm-ss
     String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
 
     response.setContentType(mime);
@@ -56,7 +55,7 @@ private void setResponseHeaders(HttpServletResponse response, String baseName, S
     response.setHeader("Cache-Control", "no-cache");
 }
 
-    // Purchase orders export: accept JSON body or no-body
+    // Purchase orders export
     @PostMapping(value = "/purchase-orders/export", produces = "application/octet-stream", consumes = MediaType.ALL_VALUE)
     public StreamingResponseBody exportPurchaseOrders(
             @RequestBody(required = false) String rawBody,
@@ -110,7 +109,6 @@ public StreamingResponseBody exportPendingWorkflows(@RequestBody(required = fals
     SearchRequest parsed = parseRequestBodyIfJson(rawBody, servletRequest);
     final SearchRequest request = (parsed != null) ? parsed : new SearchRequest();
 
-    // Ensure export only returns pending workflows (updatedStatus IS NULL / empty)
     injectUpdatedStatusFilter(request, true);
 
     String chosenFormat = (format != null && !format.trim().isEmpty()) ? format.toLowerCase()
@@ -126,8 +124,6 @@ public StreamingResponseBody exportUpdatedWorkflows(@RequestBody(required = fals
                                                     HttpServletResponse response) throws IOException {
     SearchRequest parsed = parseRequestBodyIfJson(rawBody, servletRequest);
     final SearchRequest request = (parsed != null) ? parsed : new SearchRequest();
-
-    // Ensure export only returns processed/updated workflows (updatedStatus IS NOT EMPTY)
     injectUpdatedStatusFilter(request, false);
 
     String chosenFormat = (format != null && !format.trim().isEmpty()) ? format.toLowerCase()
@@ -135,7 +131,8 @@ public StreamingResponseBody exportUpdatedWorkflows(@RequestBody(required = fals
     setResponseHeaders(response, "PO_Workflow_History", chosenFormat);
     return out -> exportService.exportWorkflows(request, out, chosenFormat);
 }
-// Helper: inject updatedStatus filter; if pending==true -> IS_EMPTY, else -> IS_NOT_EMPTY
+
+// Helper
 private void injectUpdatedStatusFilter(SearchRequest request, boolean pending) {
     if (request == null) return;
     final String normalizedTarget = normalizeName("UPDATED_STATUS");
@@ -145,7 +142,6 @@ private void injectUpdatedStatusFilter(SearchRequest request, boolean pending) {
         for (FilterRequest f : existing) {
             if (f == null || f.getColumn() == null) continue;
             if (normalizeName(f.getColumn()).equals(normalizedTarget)) {
-                // client already provided a filter for updated status -> do not override
                 return;
             }
         }
@@ -160,14 +156,14 @@ private void injectUpdatedStatusFilter(SearchRequest request, boolean pending) {
     request.setFilterBy(newFilters);
 }
 
-// lightweight normalizer (same approach used in ExportService)
+// normalizer (same approach used in ExportService)
 private String normalizeName(String s) {
     if (s == null) return "";
     return s.replaceAll("[_\\s]", "").toLowerCase(Locale.ROOT);
 }
 
     
-    // Helper: only attempt to parse the body if it seems to be JSON and non-empty.
+    // Helper
     private SearchRequest parseRequestBodyIfJson(String rawBody, HttpServletRequest servletRequest) {
         try {
             String contentType = servletRequest.getContentType();
@@ -195,7 +191,7 @@ private String normalizeName(String s) {
         if (poNumber == null || poNumber.trim().isEmpty() || request == null) return;
         if (request.getFilterBy() != null) {
             for (FilterRequest f : request.getFilterBy()) {
-                if (f != null && "poNumber".equals(f.getColumn())) return; // already filtered
+                if (f != null && "poNumber".equals(f.getColumn())) return; 
             }
         }
         FilterRequest poFilter = new FilterRequest();

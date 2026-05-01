@@ -21,7 +21,7 @@ public class Workflow {
 
     @Column(name = "PO_NUMBER")
     private String poNumber;
-    @Column(name = "RECORD_NO") // Add this column
+    @Column(name = "RECORD_NO")
     private Long recordNo;
 
     @Column(name = "OLD_PO_NUMBER")

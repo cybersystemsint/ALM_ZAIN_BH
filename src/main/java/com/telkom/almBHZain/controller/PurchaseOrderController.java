@@ -55,7 +55,7 @@ public class PurchaseOrderController {
         return service.getPurchaseOrders(request);
     }
 
-    // addition request of poNumber if it doesnt already exist
+    // add PO Number
     @PostMapping(value = "/poNumbers")
     public ResponseEntity<Map<String, String>> createPONumber(@RequestBody String req) {
         logger.info("PO NUMBER CREATE REQUEST |  {}", req);
@@ -186,22 +186,17 @@ public ResponseEntity<Map<String, String>> requestDeletePoNum(
                     " item(s) that are not 'Approved'. All items must be 'Approved' before deletion");
         }
 
-        // read updatedBy from payload (payload should contain only updatedBy)
         String payloadUpdatedBy = null;
         if (payload != null && payload.get("updatedBy") != null) {
             payloadUpdatedBy = payload.get("updatedBy").toString().trim();
             if (payloadUpdatedBy.isEmpty()) payloadUpdatedBy = null;
         }
 
-        // 2) Attempt an atomic update: set PO -> Pending Deletion only if not already pending
         int updatedRows = poNumberRepo.markPendingDeletionIfNotPending(poNum, "Pending Deletion", payloadUpdatedBy);
         if (updatedRows == 0) {
-            // no row updated -> PO must already be in a pending state (or changed concurrently)
             return response("Error", "PO number '" + poNum + "' is already in a pending state and cannot be deleted");
         }
 
-        // At this point the PO is marked Pending Deletion (and updatedBy saved if provided).
-        // Use the preferred insertedBy for the workflow (payload.updatedBy -> po.updatedBy -> createdBy -> System).
         String insertedBy = (payloadUpdatedBy != null)
                 ? payloadUpdatedBy
                 : (poNumberEntry.getUpdatedBy() != null && !poNumberEntry.getUpdatedBy().trim().isEmpty()
@@ -308,8 +303,6 @@ private Map<String, Object> processWorkflowAction(Map<String, Object> requestBod
         response.put("message", "changedBy is required in request payload");
         return response;
     }
-
-    // Fix cast: Object, not String — Spring deserializes map values as Object
     List<Map<String, Object>> selectedRows =
             (List<Map<String, Object>>) requestBody.get("selectedRows");
 
@@ -319,7 +312,6 @@ private Map<String, Object> processWorkflowAction(Map<String, Object> requestBod
         return response;
     }
 
-    // requestType is now read per row — no top-level requestType needed
     boolean hasErrors = false;
     for (Map<String, Object> row : selectedRows) {
         Map<String, String> result = new HashMap<>();
@@ -335,7 +327,6 @@ private Map<String, Object> processWorkflowAction(Map<String, Object> requestBod
             String poNumber = poNumberObj.toString().trim();
             result.put("poNumber", poNumber);
 
-            // Read requestType from each individual row
             Object rtObj = row.get("requestType");
             if (rtObj == null || rtObj.toString().trim().isEmpty()) {
                 result.put("status", "Error");

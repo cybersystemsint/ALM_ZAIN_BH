@@ -23,18 +23,15 @@ public final class WorkflowSpecification {
 
 public static Specification<Workflow> fromSearchRequest(boolean updatedStatusIsNull, SearchRequest req) {
     List<Specification<Workflow>> specs = new ArrayList<>();
-
     // Status predicate: updatedStatus IS NULL (pending) or IS NOT NULL (processed)
     specs.add((root, cq, cb) -> updatedStatusIsNull ? cb.isNull(root.get("updatedStatus")) : cb.isNotNull(root.get("updatedStatus")));
 
     if (req == null) {
         return combineAnd(specs);
     }
-
-    // New: date-range predicate (uses insertDate by default; change to "changeDate" if you prefer)
     if (req.getStartDate() != null || req.getEndDate() != null) {
         specs.add((root, cq, cb) -> {
-            Path<?> p = resolvePath(root, "insertDate"); // or "changeDate"
+            Path<?> p = resolvePath(root, "insertDate"); 
             if (p == null) return cb.conjunction();
 
             Date start = null;
@@ -43,7 +40,6 @@ public static Specification<Workflow> fromSearchRequest(boolean updatedStatusIsN
                 start = Date.from(req.getStartDate().atStartOfDay(ZoneId.systemDefault()).toInstant());
             }
             if (req.getEndDate() != null) {
-                // end-of-day to include all timestamps on endDate
                 end = Date.from(req.getEndDate().atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant());
             }
 
@@ -51,7 +47,7 @@ public static Specification<Workflow> fromSearchRequest(boolean updatedStatusIsN
                 return cb.between(p.as(Date.class), start, end);
             } else if (start != null) {
                 return cb.greaterThanOrEqualTo(p.as(Date.class), start);
-            } else { // only end present
+            } else { 
                 return cb.lessThanOrEqualTo(p.as(Date.class), end);
             }
         });
@@ -81,39 +77,28 @@ public static Specification<Workflow> fromSearchRequest(boolean updatedStatusIsN
         return result;
     }
 
-    /**
-     * Build a search specification that:
-     * - tries to treat searchColumn as the column name and searchQuery as the value (normal case)
-     * - if that fails, attempts the swapped case (searchQuery is the column, searchColumn is the value)
-     * - performs date-aware matching for Date columns, otherwise does case-insensitive LIKE for strings
-     */
+
     private static Specification<Workflow> buildSearchSpecification(String query, String searchColumn) {
         final String rawQuery = query == null ? "" : query;
         final String rawSearchColumn = searchColumn == null ? "" : searchColumn;
 
         return (root, cq, cb) -> {
-            // If a searchColumn was provided, try to resolve it as the attribute path first.
             if (!rawSearchColumn.trim().isEmpty()) {
                 Path<?> path = resolvePath(root, rawSearchColumn);
                 String valueToMatch = rawQuery;
 
-                // If the provided searchColumn couldn't be resolved, try swap (query may actually be the column)
                 if (path == null) {
                     Path<?> alt = resolvePath(root, rawQuery);
                     if (alt != null) {
                         path = alt;
-                        valueToMatch = rawSearchColumn; // swapped case
+                        valueToMatch = rawSearchColumn; 
                     } else {
-                        // neither side resolves to a path -> no-op
                         return cb.conjunction();
                     }
                 }
-
-                // perform type-aware comparison using valueToMatch
                 if (valueToMatch == null) valueToMatch = "";
                 Class<?> javaType = path.getJavaType();
 
-                // DATE handling (match by day)
                 if (java.util.Date.class.isAssignableFrom(javaType)) {
                     try {
                         LocalDate d = LocalDate.parse(valueToMatch);
@@ -121,14 +106,11 @@ public static Specification<Workflow> fromSearchRequest(boolean updatedStatusIsN
                         Date end = Date.from(d.atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant());
                         return cb.between(path.as(Date.class), start, end);
                     } catch (DateTimeParseException ex) {
-                        // not a date -> fall through to string match
                     }
                 }
 
-                // Default: case-insensitive LIKE on the resolved path
                 return cb.like(cb.lower(path.as(String.class)), "%" + valueToMatch.toLowerCase(Locale.ROOT) + "%");
             } else {
-                // No column specified: do multi-column search across reasonable text fields
                 final String q = rawQuery.toLowerCase(Locale.ROOT);
                 List<Predicate> predicates = new ArrayList<>();
                 try { predicates.add(cb.like(cb.lower(root.get("poNumber").as(String.class)), "%" + q + "%")); } catch (Exception e) {}
@@ -156,7 +138,6 @@ public static Specification<Workflow> fromSearchRequest(boolean updatedStatusIsN
                 if (path == null) return cb.conjunction();
                 Class<?> javaType = path.getJavaType();
 
-                // java.util.Date columns (insertDate, changeDate)
                 if (java.util.Date.class.isAssignableFrom(javaType)) {
                     switch (op) {
                         case EQUALS: {
@@ -192,7 +173,6 @@ public static Specification<Workflow> fromSearchRequest(boolean updatedStatusIsN
                     }
                 }
 
-                // fallback string/number handling (existing logic)
                 boolean isNumber = Number.class.isAssignableFrom(javaType) || javaType.equals(long.class) || javaType.equals(int.class);
 
                 switch (op) {
@@ -252,7 +232,6 @@ public static Specification<Workflow> fromSearchRequest(boolean updatedStatusIsN
                         return cb.conjunction();
                 }
             } catch (IllegalArgumentException ex) {
-                // unknown column
                 return cb.conjunction();
             }
         };
@@ -262,10 +241,8 @@ public static Specification<Workflow> fromSearchRequest(boolean updatedStatusIsN
         return s == null ? "" : s.toLowerCase(Locale.ROOT);
     }
 
-    /**
-     * Resolve an attribute path by trying several likely name variants.
-     * Returns null if no attribute found.
-     */
+ 
+
     private static Path<?> resolvePath(Root<?> root, String column) {
         if (column == null || column.trim().isEmpty()) return null;
         String[] candidates = generateNameCandidates(column);
@@ -273,7 +250,6 @@ public static Specification<Workflow> fromSearchRequest(boolean updatedStatusIsN
             try {
                 return root.get(candidate);
             } catch (IllegalArgumentException ignored) {
-                // try next
             }
         }
         return null;

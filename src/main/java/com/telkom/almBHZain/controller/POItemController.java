@@ -80,7 +80,7 @@ public class POItemController {
     @PostMapping(value = "/po-items", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.ALL_VALUE)
     public PageResult<POItemDto> fetchPOItems(
             @RequestBody(required = false) String rawBody,
-            @RequestParam(value = "poNumber", required = false) String poNumberParam, // optional fallback
+            @RequestParam(value = "poNumber", required = false) String poNumberParam, 
             @RequestParam(value = "searchQuery", required = false) String searchQueryParam,
             @RequestParam(value = "searchColumn", required = false) String searchColumnParam,
             @RequestParam(value = "page", required = false) Integer pageParam,
@@ -90,7 +90,6 @@ public class POItemController {
         SearchRequest parsed = parseRequestBodyIfJson(rawBody, servletRequest);
         SearchRequest request = (parsed != null) ? parsed : new SearchRequest();
 
-        // prefer values already present in request (body); otherwise use query params
         if ((request.getSearchQuery() == null || request.getSearchQuery().trim().isEmpty())
                 && searchQueryParam != null && !searchQueryParam.trim().isEmpty()) {
             request.setSearchQuery(searchQueryParam);
@@ -102,7 +101,6 @@ public class POItemController {
         if (request.getPage() == null && pageParam != null) request.setPage(pageParam);
         if (request.getSize() == null && sizeParam != null) request.setSize(sizeParam);
 
-        // prefer poNumber in body; if absent fall back to query param for compatibility
         String effectivePoNumber = (request.getPoNumber() != null && !request.getPoNumber().trim().isEmpty())
                 ? request.getPoNumber().trim()
                 : (poNumberParam != null && !poNumberParam.trim().isEmpty() ? poNumberParam.trim() : null);
@@ -114,7 +112,6 @@ public class POItemController {
     private String generateProcessId() {
         String timestamp = String.valueOf(System.currentTimeMillis());
         String randomDigit = String.valueOf((int) (Math.random() * 10));
-        // last 6 digits + random
         return timestamp.substring(Math.max(0, timestamp.length() - 6)) + randomDigit;
     }
 
@@ -123,7 +120,6 @@ public class POItemController {
         return status != null && status.trim().toLowerCase().startsWith("pending");
     }
 
-    // Centralized error helper that logs full details and returns a sanitized {status, message}
     private Map<String, String> buildErrorResponse(String userMessage, Exception ex, Object... context) {
         String errorId = UUID.randomUUID().toString().substring(0, 8); // short id
         try {
@@ -135,7 +131,6 @@ public class POItemController {
         String userFacingMessage = userMessage;
 
         if (ex instanceof DataIntegrityViolationException) {
-            // Try to detect constraint if available
             Throwable cause = ex.getCause();
             String constraint = null;
             if (cause instanceof ConstraintViolationException) {
@@ -175,26 +170,17 @@ public class POItemController {
         try {
             JSONObject jsonObject = new JSONObject(req);
             String poNumber = jsonObject.getString("poNumber").trim();
-            // using optInt to avoid exception when missing; keep default 0 if not provided
             int poLine = jsonObject.optInt("poLine", 0);
-
-            // normalize model (store N/A for null/empty)
             String modelNumber = normalizeModel(jsonObject.optString("modelNumber", null));
-
-            // Check if PO number exists
             PurchaseOrder existsPoNumber = poNumberRepo.findByPoNumber(poNumber);
             if (existsPoNumber == null) {
                 return response("Error", "PO Number " + poNumber + " does not exist, provide an existing PO Number");
             }
-
-            // Prevent adding POItem if parent PO is pending
             String poApprovalStatus = null;
             try { poApprovalStatus = existsPoNumber.getApprovalStatus(); } catch (Exception ignore) {}
             if (isPendingStatus(poApprovalStatus)) {
                 return response("Error", "Cannot add PO item because Purchase Order " + poNumber + " is in pending state: " + poApprovalStatus);
             }
-
-            // Uniqueness: only enforce when model is provided and not "N/A"
             POItem existing = null;
             if (!"N/A".equalsIgnoreCase(modelNumber)) {
                 existing = poRepo.findByPoNumberAndModelNumber(poNumber, modelNumber);
@@ -208,12 +194,8 @@ public class POItemController {
                     return response("Error", "PO item already exists for poNumber " + poNumber + " and model " + modelNumber + ".");
                 }
             }
-
-            // Create and save new PO item (mapToPo normalizes model to "N/A")
             POItem newPoItem = mapToPo(jsonObject, dateFormat);
             poRepo.save(newPoItem);
-
-            // Create workflow entry with insertedBy from payload/entity
             String insertedBy = newPoItem.getCreatedBy() != null && !newPoItem.getCreatedBy().trim().isEmpty()
                     ? newPoItem.getCreatedBy() : "System";
             workflowRepository.save(buildWorkflow(newPoItem.getPoNumber(), newPoItem.getRecordNo(), WF_PENDING_ADDITION, insertedBy));
@@ -369,8 +351,6 @@ public class POItemController {
             workflow.setRecordNo(poItem.getRecordNo());
             workflow.setOriginalStatus("Pending POItem Deletion");
             workflow.setProcessId(generateProcessId());
-
-            // Determine insertedBy: payload.requestedBy -> updatedBy -> createdBy -> System
             String requestedBy = null;
             if (payload != null && payload.get("requestedBy") != null) {
                 requestedBy = payload.get("requestedBy").toString().trim();
@@ -420,8 +400,6 @@ public ResponseEntity<Map<String, Object>> requestDeletePoItemsBulk(@RequestBody
         resp.put("message", "No valid recordNos provided");
         return ResponseEntity.badRequest().body(resp);
     }
-
-    // Load all POItems in one DB call
     List<POItem> items = poRepo.findAllById(requested);
     Map<Long, POItem> found = items.stream().collect(Collectors.toMap(POItem::getRecordNo, p -> p));
 
@@ -479,21 +457,16 @@ public ResponseEntity<Map<String, Object>> requestDeletePoItemsBulk(@RequestBody
         }
         results.add(itemResult);
     }
-
-    // Persist updated POItems and Workflows in bulk
     try {
         if (!toSave.isEmpty()) poRepo.saveAll(toSave);
         if (!workflows.isEmpty()) workflowRepository.saveAll(workflows);
     } catch (Exception e) {
-        // If bulk save fails we should surface error per item (best effort)
         logger.error("Bulk save failed for pending-deletion PO items", e);
         resp.put("status", "Error");
         resp.put("message", "Failed to persist pending deletion changes: " + e.getMessage());
         resp.put("results", results);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(resp);
     }
-
-    // build summary
     long successCount = results.stream().filter(r -> "Success".equals(r.get("status"))).count();
     long failureCount = results.size() - successCount;
 
@@ -514,26 +487,21 @@ public ResponseEntity<Map<String, Object>> requestDeletePoItemsBulk(@RequestBody
         try {
             SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
             JSONObject jsonObject = new JSONObject(req);
-            // Fetch the existing PO record
             POItem existingPo = poRepo.findByRecordNo(recordNo);
             if (existingPo == null) {
                 return simpleMap("Error", "Record does not exist for recordNo: " + recordNo);
             }
-            // Check if the PO item is in a pending state
             String currentStatus = existingPo.getApprovalStatus();
             if (isPendingStatus(currentStatus)) {
                 return simpleMap("Error", "PO item with recordNo " + recordNo + " is already in a pending state (" + currentStatus + ") and cannot be updated");
             }
-            // Ensure the poNumber is not altered
             String poNumber = jsonObject.getString("poNumber").trim();
             if (!existingPo.getPoNumber().equals(poNumber)) {
                 return simpleMap("Error", "Cannot alter poNumber for recordNo: " + recordNo);
             }
-            // Create a new tb_Po_Modification entity and populate it with the request data
             tb_Po_Modification modification = new tb_Po_Modification();
             modification.setRecordNo(recordNo);
             modification.setPoNumber(poNumber);
-            // normalize modelNumber for modification as well
             modification.setModelNumber(normalizeModel(jsonObject.optString("modelNumber", null)));
             modification.setUom(jsonObject.optString("uom", null));
             modification.setQtyPerSite(jsonObject.optInt("qtyPerSite", 0));
@@ -566,16 +534,13 @@ public ResponseEntity<Map<String, Object>> requestDeletePoItemsBulk(@RequestBody
             modification.setCreatedBy(jsonObject.optString("createdBy", "System"));
 
             try {
-                // Save the modification request
                 poModificationRepo.save(modification);
-                // Update the existing PO record's approval status and record who requested update
                 existingPo.setApprovalStatus("Pending Modification");
                 if (modification.getUpdatedBy() != null && !modification.getUpdatedBy().trim().isEmpty()) {
                     existingPo.setUpdatedBy(modification.getUpdatedBy());
                 }
                 poRepo.save(existingPo);
 
-                // Insert into Workflow Table using updatedBy -> createdBy -> System
                 try {
                     logger.info("Creating workflow entry for PO Number: {}", existingPo.getPoNumber());
                     String insertedBy = (modification.getUpdatedBy() != null && !modification.getUpdatedBy().trim().isEmpty())
@@ -586,7 +551,6 @@ public ResponseEntity<Map<String, Object>> requestDeletePoItemsBulk(@RequestBody
                     logger.info("Workflow entry saved successfully for PO Number: {}", existingPo.getPoNumber());
                 } catch (Exception e) {
                     Map<String, String> err = buildErrorResponse("Failed to save workflow entry for PO Number: " + existingPo.getPoNumber(), e, "poNumber", existingPo.getPoNumber(), "recordNo", recordNo);
-                    // return user-friendly message
                     return err;
                 }
                 logger.info("Modification request saved for PO Number: {}, Record No: {}", poNumber, recordNo);
@@ -630,7 +594,6 @@ public ResponseEntity<Map<String, Object>> approvePoItems(@RequestBody Map<Strin
         return ResponseEntity.badRequest().body(response);
     }
 
-    // requestType is now read PER ROW — no top-level requestType needed
     boolean hasErrors = false;
     for (Map<String, Object> row : selectedRows) {
         Map<String, String> result = new HashMap<>();
@@ -642,7 +605,6 @@ public ResponseEntity<Map<String, Object>> approvePoItems(@RequestBody Map<Strin
             Long recordNo = row.get("recordNo") != null
                     ? Long.parseLong(row.get("recordNo").toString()) : null;
 
-            // Read requestType from the row itself
             Object rtObj = row.get("requestType");
             if (rtObj == null || rtObj.toString().trim().isEmpty())
                 throw new IllegalArgumentException("Missing requestType in row for poNumber: " + poNumber);
@@ -717,7 +679,6 @@ public ResponseEntity<Map<String, Object>> approvePoItems(@RequestBody Map<Strin
                 return simpleResultWithContext("Error", "PO item is not 'Pending Addition'", poNumber, recordNo);
             }
 
-            // Before approving addition, if model != "N/A", ensure no duplicate exists (shouldn't happen normally)
             String model = normalizeModel(poItem.getModelNumber());
             if (!"N/A".equalsIgnoreCase(model)) {
                 POItem other = poRepo.findByPoNumberAndModelNumber(poNumber, model);
@@ -728,7 +689,6 @@ public ResponseEntity<Map<String, Object>> approvePoItems(@RequestBody Map<Strin
 
             poItem.setApprovalStatus("Approved");
             poRepo.save(poItem);
-            // Update workflow with changedBy
             updateWorkflow(poNumber, recordNo, "Pending POItem Addition", "Addition Approved", "PO item addition approved.", changedBy);
             return simpleResultWithContext("Success", "PO item addition approved.", poNumber, recordNo);
         } catch (Exception ex) {
@@ -755,18 +715,13 @@ public ResponseEntity<Map<String, Object>> approvePoItems(@RequestBody Map<Strin
             if (!"Pending Modification".equals(modification.getApprovalStatus())) {
                 return simpleResultWithContext("Error", "Modification request is not pending approval", poNumber, recordNo);
             }
-
-            // Normalize model in modification
             String newModel = normalizeModel(modification.getModelNumber());
-            // If newModel is provided (not N/A) ensure no other POItem under same PO has same model
             if (!"N/A".equalsIgnoreCase(newModel)) {
                 POItem other = poRepo.findByPoNumberAndModelNumber(poNumber, newModel);
                 if (other != null && other.getRecordNo() != poItem.getRecordNo()) {
                     return simpleResultWithContext("Error", "Cannot approve modification: another PO item under the same PO already uses model " + newModel, poNumber, recordNo);
                 }
             }
-
-            // apply changes (only copy fields that are relevant)
             poItem.setModelNumber(newModel);
             poItem.setUom(modification.getUom());
             poItem.setQtyPerSite(modification.getQtyPerSite());
@@ -961,7 +916,6 @@ public ResponseEntity<Map<String, Object>> rejectPoItems(@RequestBody Map<String
             if (!"Pending Modification".equals(modification.getApprovalStatus())) {
                 return simpleResultWithContext("Error", "Modification request is not pending approval", poNumber, recordNo);
             }
-            // reject => keep main record as Approved (or previous state)
             poItem.setApprovalStatus("Approved");
             poRepo.save(poItem);
             updateWorkflow(poNumber, recordNo, "Pending POItem Modification", "Modification Rejected", "PO item modification rejected.", changedBy);
@@ -1025,7 +979,6 @@ public ResponseEntity<Map<String, Object>> rejectPoItems(@RequestBody Map<String
     private POItem mapToPo(JSONObject obj, SimpleDateFormat dateFormat) throws ParseException {
         POItem po = new POItem();
         po.setPoNumber(obj.optString("poNumber", "").trim());
-        // normalize model: store as "N/A" when null/empty
         po.setModelNumber(normalizeModel(obj.optString("modelNumber", null)));
         po.setUom(obj.optString("uom", null));
         po.setQtyPerSite(obj.optInt("qtyPerSite", 0));
@@ -1082,7 +1035,6 @@ public ResponseEntity<Map<String, Object>> rejectPoItems(@RequestBody Map<String
         tb_Po_Modification mod = new tb_Po_Modification();
         mod.setRecordNo(recordNo);
         mod.setPoNumber(obj.optString("poNumber", null));
-        // normalize model for modification
         mod.setModelNumber(normalizeModel(obj.optString("modelNumber", null)));
         mod.setUom(obj.optString("uom", null));
         mod.setQtyPerSite(obj.optInt("qtyPerSite", 0));
@@ -1110,7 +1062,6 @@ public ResponseEntity<Map<String, Object>> rejectPoItems(@RequestBody Map<String
         mod.setCostCenter(obj.optString("costCenter", null));
         mod.setUpdatedBy(obj.optString("updatedBy", "System"));
 
-        // Use createdBy from payload if provided; otherwise default to updatedBy -> System
         String createdBy = obj.optString("createdBy", null);
         String updatedBy = obj.optString("updatedBy", null);
         if (createdBy == null || createdBy.trim().isEmpty()) {
@@ -1128,7 +1079,6 @@ public ResponseEntity<Map<String, Object>> rejectPoItems(@RequestBody Map<String
         wf.setPoNumber(poNumber);
         wf.setRecordNo(recordNo);
 
-        // normalize originalStatus - prefer provided, otherwise mark as unknown so it's searchable
         String status = (originalStatus != null && !originalStatus.trim().isEmpty())
                 ? originalStatus.trim()
                 : WF_UNKNOWN_STATUS;
@@ -1192,7 +1142,7 @@ public ResponseEntity<Map<String, Object>> rejectPoItems(@RequestBody Map<String
         if (poNumber == null || poNumber.trim().isEmpty() || request == null) return;
         if (request.getFilterBy() != null) {
             for (FilterRequest f : request.getFilterBy()) {
-                if (f != null && "poNumber".equals(f.getColumn())) return; // already filtered
+                if (f != null && "poNumber".equals(f.getColumn())) return; 
             }
         }
         FilterRequest poFilter = new FilterRequest();

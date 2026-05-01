@@ -17,12 +17,7 @@ import com.telkom.almBHZain.dto.Request.FilterRequest;
 import com.telkom.almBHZain.dto.Request.SearchRequest;
 import com.telkom.almBHZain.model.POItem;
 
-/**
- * Specification builder for POItem with robust handling for:
- * - numeric columns
- * - date columns (yyyy-MM-dd)
- * - different column-name styles (snake_case, camelCase, ALL_CAPS)
- */
+
 public final class POItemSpecification {
 
     private POItemSpecification() {}
@@ -49,26 +44,23 @@ public final class POItemSpecification {
         return result;
     }
 private static Specification<POItem> buildSearchSpecification(String query, String searchColumn) {
-    // Use raw query/value strings as provided by client
     final String rawQuery = query == null ? "" : query;
     final String rawSearchColumn = searchColumn == null ? "" : searchColumn;
 
     return (root, cq, cb) -> {
-        // If a specific column was requested, attempt to resolve it.
-        // But if it fails, try swapping: maybe client passed column/value reversed.
+
         if (!rawSearchColumn.trim().isEmpty()) {
             try {
                 Path<?> path = resolvePath(root, rawSearchColumn);
-                String valueToMatch = rawQuery; // normal case: query is the value
+                String valueToMatch = rawQuery; 
 
                 if (path == null) {
-                    // try swap: maybe query is actually a column and searchColumn is the value
                     Path<?> alt = resolvePath(root, rawQuery);
                     if (alt != null) {
                         path = alt;
-                        valueToMatch = rawSearchColumn; // swapped case
+                        valueToMatch = rawSearchColumn; 
                     } else {
-                        return cb.conjunction(); // neither resolved -> no-op
+                        return cb.conjunction();
                     }
                 }
 
@@ -77,7 +69,6 @@ private static Specification<POItem> buildSearchSpecification(String query, Stri
                 Class<?> javaType = path.getJavaType();
                 String valueLower = valueToMatch.toLowerCase(Locale.ROOT);
 
-                // DATE / TIMESTAMP handling: try parse the valueToMatch as yyyy-MM-dd
                 if (java.sql.Date.class.isAssignableFrom(javaType)
                         || java.util.Date.class.isAssignableFrom(javaType)
                         || java.sql.Timestamp.class.isAssignableFrom(javaType)) {
@@ -92,17 +83,14 @@ private static Specification<POItem> buildSearchSpecification(String query, Stri
                             return cb.between(path.as(java.util.Date.class), start, end);
                         }
                     } catch (DateTimeParseException ex) {
-                        // not a date -> fall back to string match below
                     }
                 }
 
-                // Default: string match on specified column
                 return cb.like(cb.lower(path.as(String.class)), "%" + valueLower + "%");
             } catch (IllegalArgumentException ex) {
                 return cb.conjunction();
             }
         } else {
-            // No column specified -> search across default columns
             final String q = rawQuery.toLowerCase(Locale.ROOT);
             List<Predicate> predicates = new ArrayList<>();
             try { predicates.add(cb.like(cb.lower(root.get("poNumber").as(String.class)), "%" + q + "%")); } catch (Exception e) {}
@@ -128,7 +116,6 @@ private static Specification<POItem> buildSearchSpecification(String query, Stri
                 if (path == null) return cb.conjunction();
                 Class<?> javaType = path.getJavaType();
 
-                // DATE / TIMESTAMP handling
                 if (java.sql.Date.class.isAssignableFrom(javaType)
                         || java.util.Date.class.isAssignableFrom(javaType)
                         || java.sql.Timestamp.class.isAssignableFrom(javaType)) {
@@ -167,7 +154,6 @@ private static Specification<POItem> buildSearchSpecification(String query, Stri
                     }
                 }
 
-                // NUMERIC handling
                 boolean isNumber = Number.class.isAssignableFrom(javaType)
                         || javaType.equals(int.class) || javaType.equals(long.class)
                         || javaType.equals(double.class) || javaType.equals(float.class)
@@ -204,11 +190,9 @@ private static Specification<POItem> buildSearchSpecification(String query, Stri
                         case STARTS_WITH:
                         case ENDS_WITH:
                         default:
-                            // fallthrough to string-style fallback for other ops
                     }
                 }
 
-                // fallback: string-based filtering
                 switch (op) {
                     case CONTAINS: {
                         String val = safeLower(f.getValue());
@@ -245,7 +229,6 @@ private static Specification<POItem> buildSearchSpecification(String query, Stri
                         return cb.conjunction();
                 }
             } catch (IllegalArgumentException ex) {
-                // unknown column: no-op
                 return cb.conjunction();
             }
         };
@@ -261,7 +244,6 @@ private static Specification<POItem> buildSearchSpecification(String query, Stri
         if (targetType == Float.class || targetType == float.class) return Float.valueOf(trimmed);
         if (targetType == Short.class || targetType == short.class) return Short.valueOf(trimmed);
         if (targetType == Byte.class || targetType == byte.class) return Byte.valueOf(trimmed);
-        // fallback to Long
         return Long.valueOf(trimmed);
     }
 
@@ -269,10 +251,7 @@ private static Specification<POItem> buildSearchSpecification(String query, Stri
         return s == null ? "" : s.toLowerCase(Locale.ROOT);
     }
 
-    /**
-     * Try resolving an attribute path by attempting several common name variants.
-     * Returns null if no attribute found.
-     */
+
     private static Path<?> resolvePath(Root<?> root, String column) {
         if (column == null || column.trim().isEmpty()) return null;
 
@@ -288,7 +267,6 @@ private static Specification<POItem> buildSearchSpecification(String query, Stri
     }
 
     private static String[] generateNameCandidates(String column) {
-        // try in this order: as-is, decapitalize, snake_to_camel, upper, lower
         String asIs = column;
         String decap = decapitalize(column);
         String camel = snakeToCamel(column);
@@ -306,7 +284,6 @@ private static Specification<POItem> buildSearchSpecification(String query, Stri
         if (s == null) return null;
         String in = s.trim();
         if (!in.contains("_")) {
-            // also handle ALLCAPS -> lowerCamel
             if (in.equals(in.toUpperCase())) {
                 return decapitalize(in.toLowerCase(Locale.ROOT));
             }

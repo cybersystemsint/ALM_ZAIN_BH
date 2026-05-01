@@ -97,7 +97,6 @@ private POItemDto toDto(POItem e) {
     d.setPartNumber(e.getPartNumber());
     d.setL3Description(e.getL3Description());
     d.setCostCenter(e.getCostCenter());
-    // entity has getApprovalStatus() (new name); use that
     d.setApprovalStatus(e.getApprovalStatus());
     d.setCreatedBy(e.getCreatedBy());
     if (e.getCreatedDateTime() != null) {
