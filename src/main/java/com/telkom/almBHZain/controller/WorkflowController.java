@@ -1,39 +1,54 @@
 package com.telkom.almBHZain.controller;
 
 import com.telkom.almBHZain.dto.WorkflowDto;
-import com.telkom.almBHZain.dto.Request.SearchRequest;
-import com.telkom.almBHZain.dto.Response.PageResult;
-import com.telkom.almBHZain.model.Workflow;
+import com.telkom.almBHZain.dto.request.SearchRequest;
+import com.telkom.almBHZain.dto.response.PageResult;
 import com.telkom.almBHZain.service.WorkflowService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-
+/**
+ * Thin REST controller for Workflow read endpoints.
+ *
+ * Responsibilities:
+ *   - Accept HTTP requests
+ *   - Delegate to {@link WorkflowService}
+ *   - Return {@link ResponseEntity} responses
+ *
+ * No business logic belongs here.
+ */
 @RestController
 @CrossOrigin(origins = "*", allowedHeaders = "*", maxAge = 3600)
 @Validated
 public class WorkflowController {
 
-    private static final Logger logger = LoggerFactory.getLogger(WorkflowController.class);
+    private final WorkflowService workflowService;
 
-     @Autowired
-    private  WorkflowService workflowService;
+    @Autowired
+    public WorkflowController(WorkflowService workflowService) {
+        this.workflowService = workflowService;
+    }
 
+    /**
+     * POST /pendingWorkflows
+     * Returns workflows where updatedStatus IS NULL (pending approval).
+     */
+    @PostMapping("/pendingWorkflows")
+    public ResponseEntity<PageResult<WorkflowDto>> getPendingWorkflows(
+            @RequestBody SearchRequest searchRequest) {
+        return ResponseEntity.ok(workflowService.getWorkflows(true, searchRequest));
+    }
 
-@PostMapping("/pendingWorkflows")
-public ResponseEntity<?> getPendingWorkflows(@RequestBody SearchRequest searchRequest) {
-    PageResult<WorkflowDto> result = workflowService.getWorkflows(true, searchRequest);
-    return ResponseEntity.ok(result);
-}
-
-@PostMapping("/approvedApprovals")
-public ResponseEntity<?> getProcessedWorkflows(@RequestBody SearchRequest searchRequest) {
-    PageResult<WorkflowDto> result = workflowService.getWorkflows(false, searchRequest);
-    return ResponseEntity.ok(result);
-}
+    /**
+     * POST /approvedApprovals
+     * Returns workflows where updatedStatus IS NOT NULL (already processed).
+     */
+    @PostMapping("/approvedApprovals")
+    public ResponseEntity<PageResult<WorkflowDto>> getProcessedWorkflows(
+            @RequestBody SearchRequest searchRequest) {
+        return ResponseEntity.ok(workflowService.getWorkflows(false, searchRequest));
+    }
 }

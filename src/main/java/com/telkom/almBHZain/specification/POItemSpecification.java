@@ -12,9 +12,9 @@ import javax.persistence.criteria.Root;
 
 import org.springframework.data.jpa.domain.Specification;
 
-import com.telkom.almBHZain.dto.Request.FilterOperator;
-import com.telkom.almBHZain.dto.Request.FilterRequest;
-import com.telkom.almBHZain.dto.Request.SearchRequest;
+import com.telkom.almBHZain.dto.request.FilterOperator;
+import com.telkom.almBHZain.dto.request.FilterRequest;
+import com.telkom.almBHZain.dto.request.SearchRequest;
 import com.telkom.almBHZain.model.POItem;
 
 

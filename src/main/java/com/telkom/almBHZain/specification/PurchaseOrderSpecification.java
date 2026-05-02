@@ -1,8 +1,8 @@
 package com.telkom.almBHZain.specification;
 
-import com.telkom.almBHZain.dto.Request.FilterOperator;
-import com.telkom.almBHZain.dto.Request.FilterRequest;
-import com.telkom.almBHZain.dto.Request.SearchRequest;
+import com.telkom.almBHZain.dto.request.FilterOperator;
+import com.telkom.almBHZain.dto.request.FilterRequest;
+import com.telkom.almBHZain.dto.request.SearchRequest;
 import com.telkom.almBHZain.model.PurchaseOrder;
 import org.springframework.data.jpa.domain.Specification;
 

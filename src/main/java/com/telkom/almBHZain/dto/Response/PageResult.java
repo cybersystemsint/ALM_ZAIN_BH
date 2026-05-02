@@ -1,4 +1,4 @@
-package com.telkom.almBHZain.dto.Response;
+package com.telkom.almBHZain.dto.response;
 
 import java.util.List;
 

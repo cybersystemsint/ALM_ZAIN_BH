@@ -1,5 +1,19 @@
 package com.telkom.almBHZain.controller;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.telkom.almBHZain.dto.request.FilterOperator;
+import com.telkom.almBHZain.dto.request.FilterRequest;
+import com.telkom.almBHZain.dto.request.SearchRequest;
+import com.telkom.almBHZain.service.ExportService;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -7,177 +21,141 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
-
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.telkom.almBHZain.dto.Request.FilterOperator;
-import com.telkom.almBHZain.dto.Request.FilterRequest;
-import com.telkom.almBHZain.dto.Request.SearchRequest;
-import com.telkom.almBHZain.service.ExportService;
-import com.telkom.almBHZain.service.POItemService;
-
+/**
+ * Thin REST controller for streaming data exports.
+ *
+ * Responsibilities:
+ *   - Parse optional JSON body into a {@link SearchRequest}
+ *   - Set HTTP response headers (Content-Type, Content-Disposition)
+ *   - Delegate export streaming to {@link ExportService}
+ *
+ * No SQL, business logic, or file-generation code belongs here.
+ */
 @RestController
 public class ExportController {
 
-    private final POItemService service;
     private final ExportService exportService;
-    private final ObjectMapper objectMapper;
+    private final ObjectMapper  objectMapper;
 
     @Autowired
-    public ExportController(POItemService service, ExportService exportService) {
-        this.service = service;
+    public ExportController(ExportService exportService) {
         this.exportService = exportService;
-        this.objectMapper = new ObjectMapper()
+        this.objectMapper  = new ObjectMapper()
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     }
 
-private void setResponseHeaders(HttpServletResponse response, String baseName, String chosenFormat) {
-    String ext = "csv".equalsIgnoreCase(chosenFormat) ? "csv" : "xlsx";
-    String mime = "csv".equalsIgnoreCase(chosenFormat)
-            ? "text/csv"
-            : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    // ──────────────────────────────────────────────
+    // Export endpoints
+    // ──────────────────────────────────────────────
 
-    String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
-
-    response.setContentType(mime);
-    response.setHeader("Content-Disposition",
-            "attachment; filename=" + baseName + "_" + timestamp + "." + ext);
-    response.setHeader("Cache-Control", "no-cache");
-}
-
-    // Purchase orders export
-    @PostMapping(value = "/purchase-orders/export", produces = "application/octet-stream", consumes = MediaType.ALL_VALUE)
+    /**
+     * POST /purchase-orders/export
+     */
+    @PostMapping(value = "/purchase-orders/export",
+            produces = "application/octet-stream",
+            consumes = MediaType.ALL_VALUE)
     public StreamingResponseBody exportPurchaseOrders(
             @RequestBody(required = false) String rawBody,
             @RequestParam(required = false) String format,
             HttpServletRequest servletRequest,
             HttpServletResponse response) throws IOException {
 
-        SearchRequest parsed = parseRequestBodyIfJson(rawBody, servletRequest);
-        final SearchRequest request = (parsed != null) ? parsed : new SearchRequest();
-
-        String chosenFormat = (format != null && !format.trim().isEmpty())
-                ? format.toLowerCase()
-                : request.getFormatOrDefault("excel");
+        SearchRequest request     = parseBody(rawBody, servletRequest);
+        String        chosenFormat = resolveFormat(format, request, "excel");
 
         setResponseHeaders(response, "purchase_orders", chosenFormat);
         return out -> exportService.exportPurchaseOrders(request, out, chosenFormat);
     }
 
-@PostMapping(value = "/po-items/export", produces = "application/octet-stream", consumes = MediaType.ALL_VALUE)
-public StreamingResponseBody exportPOItems(
-        @RequestParam(value = "format", required = false) String format,
-        @RequestParam(value = "poNumber", required = false) String poNumberParam, // optional fallback
-        @RequestBody(required = false) String rawBody,
-        HttpServletRequest servletRequest,
-        HttpServletResponse response) throws IOException {
+    /**
+     * POST /po-items/export
+     */
+    @PostMapping(value = "/po-items/export",
+            produces = "application/octet-stream",
+            consumes = MediaType.ALL_VALUE)
+    public StreamingResponseBody exportPOItems(
+            @RequestParam(value = "format",   required = false) String format,
+            @RequestParam(value = "poNumber", required = false) String poNumberParam,
+            @RequestBody(required = false) String rawBody,
+            HttpServletRequest servletRequest,
+            HttpServletResponse response) throws IOException {
 
-    SearchRequest parsed = parseRequestBodyIfJson(rawBody, servletRequest);
-    final SearchRequest request = (parsed != null) ? parsed : new SearchRequest();
+        SearchRequest request = parseBody(rawBody, servletRequest);
 
-    // prefer poNumber in body; otherwise fallback to query param
-    String effectivePoNumber = (request.getPoNumber() != null && !request.getPoNumber().trim().isEmpty())
-            ? request.getPoNumber().trim()
-            : (poNumberParam != null && !poNumberParam.trim().isEmpty() ? poNumberParam.trim() : null);
+        String effectivePoNumber = effectiveValue(request.getPoNumber(), poNumberParam);
+        injectPoNumberFilter(effectivePoNumber, request);
 
-    injectPoNumberFilterIfNeeded(effectivePoNumber, request);
+        String chosenFormat = resolveFormat(format, request, "excel");
+        String baseName = "po_items" + (effectivePoNumber != null ? "_" + effectivePoNumber : "");
 
-    String chosenFormat = (format != null && !format.trim().isEmpty())
-            ? format.toLowerCase()
-            : request.getFormatOrDefault("excel");
-
-    setResponseHeaders(response, "po_items" + (effectivePoNumber != null ? ("_" + effectivePoNumber) : ""), chosenFormat);
-
-    return out -> exportService.exportPOItems(request, out, chosenFormat);
-}
-
-@PostMapping(value = "/pendingWorkflows/export", produces = "application/octet-stream", consumes = MediaType.ALL_VALUE)
-public StreamingResponseBody exportPendingWorkflows(@RequestBody(required = false) String rawBody,
-                                                    @RequestParam(required = false) String format,
-                                                    HttpServletRequest servletRequest,
-                                                    HttpServletResponse response) throws IOException {
-    SearchRequest parsed = parseRequestBodyIfJson(rawBody, servletRequest);
-    final SearchRequest request = (parsed != null) ? parsed : new SearchRequest();
-
-    injectUpdatedStatusFilter(request, true);
-
-    String chosenFormat = (format != null && !format.trim().isEmpty()) ? format.toLowerCase()
-            : request.getFormatOrDefault("excel");
-    setResponseHeaders(response, "PO_Pending_Workflow", chosenFormat);
-    return out -> exportService.exportWorkflows(request, out, chosenFormat);
-}
-
-@PostMapping(value = "/approvedApprovals/export", produces = "application/octet-stream", consumes = MediaType.ALL_VALUE)
-public StreamingResponseBody exportUpdatedWorkflows(@RequestBody(required = false) String rawBody,
-                                                    @RequestParam(required = false) String format,
-                                                    HttpServletRequest servletRequest,
-                                                    HttpServletResponse response) throws IOException {
-    SearchRequest parsed = parseRequestBodyIfJson(rawBody, servletRequest);
-    final SearchRequest request = (parsed != null) ? parsed : new SearchRequest();
-    injectUpdatedStatusFilter(request, false);
-
-    String chosenFormat = (format != null && !format.trim().isEmpty()) ? format.toLowerCase()
-            : request.getFormatOrDefault("excel");
-    setResponseHeaders(response, "PO_Workflow_History", chosenFormat);
-    return out -> exportService.exportWorkflows(request, out, chosenFormat);
-}
-
-// Helper
-private void injectUpdatedStatusFilter(SearchRequest request, boolean pending) {
-    if (request == null) return;
-    final String normalizedTarget = normalizeName("UPDATED_STATUS");
-
-    List<FilterRequest> existing = request.getFilterBy();
-    if (existing != null) {
-        for (FilterRequest f : existing) {
-            if (f == null || f.getColumn() == null) continue;
-            if (normalizeName(f.getColumn()).equals(normalizedTarget)) {
-                return;
-            }
-        }
+        setResponseHeaders(response, baseName, chosenFormat);
+        return out -> exportService.exportPOItems(request, out, chosenFormat);
     }
 
-    FilterRequest fr = new FilterRequest();
-    fr.setColumn("UPDATED_STATUS");
-    fr.setOperator(pending ? FilterOperator.IS_EMPTY : FilterOperator.IS_NOT_EMPTY);
+    /**
+     * POST /pendingWorkflows/export
+     */
+    @PostMapping(value = "/pendingWorkflows/export",
+            produces = "application/octet-stream",
+            consumes = MediaType.ALL_VALUE)
+    public StreamingResponseBody exportPendingWorkflows(
+            @RequestBody(required = false) String rawBody,
+            @RequestParam(required = false) String format,
+            HttpServletRequest servletRequest,
+            HttpServletResponse response) throws IOException {
 
-    List<FilterRequest> newFilters = existing == null ? new ArrayList<>() : new ArrayList<>(existing);
-    newFilters.add(fr);
-    request.setFilterBy(newFilters);
-}
+        SearchRequest request = parseBody(rawBody, servletRequest);
+        injectUpdatedStatusFilter(request, true);
 
-// normalizer (same approach used in ExportService)
-private String normalizeName(String s) {
-    if (s == null) return "";
-    return s.replaceAll("[_\\s]", "").toLowerCase(Locale.ROOT);
-}
+        String chosenFormat = resolveFormat(format, request, "excel");
+        setResponseHeaders(response, "PO_Pending_Workflow", chosenFormat);
+        return out -> exportService.exportWorkflows(request, out, chosenFormat);
+    }
 
-    
-    // Helper
-    private SearchRequest parseRequestBodyIfJson(String rawBody, HttpServletRequest servletRequest) {
+    /**
+     * POST /approvedApprovals/export
+     */
+    @PostMapping(value = "/approvedApprovals/export",
+            produces = "application/octet-stream",
+            consumes = MediaType.ALL_VALUE)
+    public StreamingResponseBody exportUpdatedWorkflows(
+            @RequestBody(required = false) String rawBody,
+            @RequestParam(required = false) String format,
+            HttpServletRequest servletRequest,
+            HttpServletResponse response) throws IOException {
+
+        SearchRequest request = parseBody(rawBody, servletRequest);
+        injectUpdatedStatusFilter(request, false);
+
+        String chosenFormat = resolveFormat(format, request, "excel");
+        setResponseHeaders(response, "PO_Workflow_History", chosenFormat);
+        return out -> exportService.exportWorkflows(request, out, chosenFormat);
+    }
+
+    // ──────────────────────────────────────────────
+    // Private utilities (controller concerns only)
+    // ──────────────────────────────────────────────
+
+    private void setResponseHeaders(HttpServletResponse response, String baseName, String format) {
+        boolean isCsv = "csv".equalsIgnoreCase(format);
+        String ext  = isCsv ? "csv" : "xlsx";
+        String mime = isCsv ? "text/csv"
+                : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+        String ts   = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
+        response.setContentType(mime);
+        response.setHeader("Content-Disposition", "attachment; filename=" + baseName + "_" + ts + "." + ext);
+        response.setHeader("Cache-Control", "no-cache");
+    }
+
+    private SearchRequest parseBody(String rawBody, HttpServletRequest servletRequest) {
+        if (rawBody == null || rawBody.trim().isEmpty()) return new SearchRequest();
         try {
-            String contentType = servletRequest.getContentType();
-            if (rawBody == null || rawBody.trim().isEmpty()) {
-                return null;
-            }
-            if ((contentType != null && contentType.toLowerCase().contains("json")) || looksLikeJson(rawBody)) {
+            String ct = servletRequest.getContentType();
+            if ((ct != null && ct.toLowerCase().contains("json")) || looksLikeJson(rawBody)) {
                 return objectMapper.readValue(rawBody, SearchRequest.class);
-            } else {
-                return null;
             }
-        } catch (IOException ex) {
-            return null;
-        }
+        } catch (IOException ignored) { /* fall through */ }
+        return new SearchRequest();
     }
 
     private boolean looksLikeJson(String s) {
@@ -186,20 +164,62 @@ private String normalizeName(String s) {
         return t.startsWith("{") || t.startsWith("[");
     }
 
-    // Reusable injection of poNumber filter (keeps existing filters and avoids duplicates)
-    private void injectPoNumberFilterIfNeeded(String poNumber, SearchRequest request) {
-        if (poNumber == null || poNumber.trim().isEmpty() || request == null) return;
+    private String resolveFormat(String queryParam, SearchRequest request, String defaultFormat) {
+        if (!isBlank(queryParam))                    return queryParam.trim().toLowerCase();
+        if (request != null)                         return request.getFormatOrDefault(defaultFormat);
+        return defaultFormat;
+    }
+
+    private void injectPoNumberFilter(String poNumber, SearchRequest request) {
+        if (isBlank(poNumber) || request == null) return;
         if (request.getFilterBy() != null) {
             for (FilterRequest f : request.getFilterBy()) {
-                if (f != null && "poNumber".equals(f.getColumn())) return; 
+                if (f != null && "poNumber".equals(f.getColumn())) return;
             }
         }
-        FilterRequest poFilter = new FilterRequest();
-        poFilter.setColumn("poNumber");
-        poFilter.setOperator(com.telkom.almBHZain.dto.Request.FilterOperator.EQUALS);
-        poFilter.setValue(poNumber);
-        List<FilterRequest> filters = request.getFilterBy() == null ? new ArrayList<>() : new ArrayList<>(request.getFilterBy());
-        filters.add(poFilter);
+        FilterRequest filter = new FilterRequest();
+        filter.setColumn("poNumber");
+        filter.setOperator(FilterOperator.EQUALS);
+        filter.setValue(poNumber);
+        List<FilterRequest> filters = request.getFilterBy() == null
+                ? new ArrayList<>() : new ArrayList<>(request.getFilterBy());
+        filters.add(filter);
         request.setFilterBy(filters);
+    }
+
+    /**
+     * Injects an UPDATED_STATUS IS_EMPTY (pending) or IS_NOT_EMPTY (processed) filter,
+     * but only if one is not already present.
+     */
+    private void injectUpdatedStatusFilter(SearchRequest request, boolean pending) {
+        if (request == null) return;
+        final String normalizedTarget = normalizeName("UPDATED_STATUS");
+
+        if (request.getFilterBy() != null) {
+            for (FilterRequest f : request.getFilterBy()) {
+                if (f == null || f.getColumn() == null) continue;
+                if (normalizeName(f.getColumn()).equals(normalizedTarget)) return;
+            }
+        }
+        FilterRequest fr = new FilterRequest();
+        fr.setColumn("UPDATED_STATUS");
+        fr.setOperator(pending ? FilterOperator.IS_EMPTY : FilterOperator.IS_NOT_EMPTY);
+
+        List<FilterRequest> filters = request.getFilterBy() == null
+                ? new ArrayList<>() : new ArrayList<>(request.getFilterBy());
+        filters.add(fr);
+        request.setFilterBy(filters);
+    }
+
+    private String effectiveValue(String primary, String fallback) {
+        if (!isBlank(primary)) return primary.trim();
+        if (!isBlank(fallback)) return fallback.trim();
+        return null;
+    }
+
+    private boolean isBlank(String s) { return s == null || s.trim().isEmpty(); }
+
+    private String normalizeName(String s) {
+        return s == null ? "" : s.replaceAll("[_\\s]", "").toLowerCase(Locale.ROOT);
     }
 }

@@ -1,4 +1,4 @@
-package com.telkom.almBHZain.dto.Request;
+package com.telkom.almBHZain.dto.request;
 
 public enum FilterOperator {
     CONTAINS,

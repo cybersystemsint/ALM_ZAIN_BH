@@ -1,24 +1,10 @@
-package com.telkom.almBHZain.dto.Request;
+package com.telkom.almBHZain.dto.request;
 
 public class FilterRequest {
-    /**
-     * The entity field name (camelCase), e.g. "warehouseName", "status", "zone"
-     */
+
     private String column;
-
-    /**
-     * Operator: CONTAINS, EQUALS, STARTS_WITH, ENDS_WITH, IS_EMPTY, IS_NOT_EMPTY, IS_ANY_OF
-     */
     private FilterOperator operator;
-
-    /**
-     * Single value — used by CONTAINS, EQUALS, STARTS_WITH, ENDS_WITH
-     */
     private String value;
-
-    /**
-     * Multi-value list — used by IS_ANY_OF
-     */
     private java.util.List<String> values;
 
     public String getColumn() { return column; }
